@@ -1,4 +1,4 @@
-"""Pontuação com IA (Claude ou OpenAI): compara cada lead com o perfil do cliente ideal."""
+"""Pontuação com IA (Claude, OpenAI ou Gemini): compara cada lead com o perfil do cliente ideal."""
 from __future__ import annotations
 
 import json
@@ -8,12 +8,15 @@ from typing import Callable
 import anthropic
 import openai
 import pandas as pd
+from google import genai
+from google.genai import errors as genai_errors
+from google.genai import types as genai_types
 
 from .models import PerfilClienteIdeal
 
 MODELO = "claude-opus-5-5"            # Claude (Anthropic)
 MODELO_OPENAI_PADRAO = "gpt-5-mini"     # OpenAI; troque com OPENAI_MODEL nos Secrets
-PROVEDORES = {"anthropic": "Claude (Anthropic)", "openai": "OpenAI"}
+MODELO_GEMINI_PADRAO = "gemini-3.8-flash"  # Google; troque com GEMINI_MODEL nos Secrets
 TAMANHO_LOTE = 15
 CAMPOS_LEAD = ["id", "empresa", "setor", "porte", "cidade", "uf", "funcionarios", "descricao", "site"]
 
@@ -141,6 +144,39 @@ def _lote_openai(client: openai.OpenAI, modelo: str, icp: PerfilClienteIdeal, lo
     return _interpretar(escolha.message.content or "")
 
 
+def _lote_gemini(client: genai.Client, modelo: str, icp: PerfilClienteIdeal, lote: list[dict]) -> dict[int, dict]:
+    try:
+        resposta = client.models.generate_content(
+            model=modelo,
+            contents=_conteudo(icp, lote),
+            config=genai_types.GenerateContentConfig(
+                system_instruction=SYSTEM,
+                max_output_tokens=16000,
+                response_mime_type="application/json",
+                response_json_schema=SCHEMA,
+            ),
+        )
+    except genai_errors.APIError as e:
+        mensagens = {
+            400: "Requisição recusada pelo Gemini. Confira se a chave é uma chave de API válida (começa com 'AIza').",
+            401: "Chave da API do Gemini inválida.",
+            403: "A chave do Gemini não tem permissão (ative a Gemini API no projeto).",
+            404: f"Modelo '{modelo}' não encontrado no Gemini. Ajuste GEMINI_MODEL nos Secrets.",
+            429: "Limite de uso do Gemini atingido. Tente novamente em instantes.",
+        }
+        raise ErroIA(mensagens.get(e.code, f"Erro da API do Gemini ({e.code}): {e.message}")) from e
+    except Exception as e:  # falhas de rede do cliente HTTP
+        raise ErroIA(f"Não foi possível conectar à API do Gemini: {e}") from e
+
+    candidato = (resposta.candidates or [None])[0]
+    motivo = str(getattr(candidato, "finish_reason", "") or "")
+    if "MAX_TOKENS" in motivo:
+        raise ErroIA("A resposta da IA foi cortada (lote grande demais).")
+    if not resposta.text:
+        raise ErroIA(f"O Gemini não devolveu resposta ({motivo or 'bloqueio de segurança'}).")
+    return _interpretar(resposta.text)
+
+
 def pontuar(
     df: pd.DataFrame,
     icp: PerfilClienteIdeal,
@@ -154,6 +190,10 @@ def pontuar(
         client = openai.OpenAI(api_key=api_key, max_retries=3)
         modelo = modelo or MODELO_OPENAI_PADRAO
         chamar = _lote_openai
+    elif provedor == "gemini":
+        client = genai.Client(api_key=api_key)
+        modelo = modelo or MODELO_GEMINI_PADRAO
+        chamar = _lote_gemini
     else:
         client = anthropic.Anthropic(api_key=api_key, max_retries=3)
         modelo = modelo or MODELO

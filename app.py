@@ -78,6 +78,8 @@ if k := chave("ANTHROPIC_API_KEY", "sk-ant-"):
     IAS["Claude (IA)"] = ("anthropic", k, score_ia.MODELO)
 if k := chave("OPENAI_API_KEY", "sk-"):
     IAS["OpenAI (IA)"] = ("openai", k, segredo("OPENAI_MODEL") or score_ia.MODELO_OPENAI_PADRAO)
+if k := chave("GEMINI_API_KEY", ""):
+    IAS["Gemini (IA)"] = ("gemini", k, segredo("GEMINI_MODEL") or score_ia.MODELO_GEMINI_PADRAO)
 
 usuario = auth.exigir_login(usuarios_configurados(), logo=str(RAIZ / "assets/logo.png"))
 
@@ -87,7 +89,7 @@ with st.sidebar:
     opcoes = [*IAS, "Análise local"]
     metodo = st.radio("Como pontuar os leads", opcoes, label_visibility="collapsed")
     if not IAS:
-        st.info("Nenhuma chave de IA configurada (Anthropic ou OpenAI): o portal usa a análise local.")
+        st.info("Nenhuma chave de IA configurada (Anthropic, OpenAI ou Gemini): o portal usa a análise local.")
     elif metodo in IAS:
         st.caption(f"Modelo: `{IAS[metodo][2]}` · até {MAX_LEADS_IA} leads por análise.")
     st.divider()
@@ -311,7 +313,7 @@ with aba_sobre:
 2. **Limpeza (Python + Pandas).** Padroniza textos, CNPJ, e-mail, site e porte; descarta linhas sem nome
    e remove duplicatas pelo CNPJ ou, sem ele, pelo nome + cidade.
 3. **Pontuação.**
-   - **IA (Claude, da Anthropic, ou OpenAI):** o modelo lê setor, porte, localização e a descrição livre de
+   - **IA (Claude, OpenAI ou Gemini):** o modelo lê setor, porte, localização e a descrição livre de
      cada empresa, compara com o perfil do cliente ideal e devolve, em JSON estruturado, uma nota de 0 a 100 e a
      justificativa. Os leads vão em lotes de {score_ia.TAMANHO_LOTE}, processados em paralelo.
    - **Análise local:** sem chave de API, a nota combina similaridade textual TF-IDF com o perfil (40 pts),
