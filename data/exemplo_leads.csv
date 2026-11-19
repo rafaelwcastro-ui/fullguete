@@ -1,0 +1,29 @@
+empresa,cnpj,setor,porte,cidade,uf,descricao,site,email,telefone,funcionarios
+Casa Nova Móveis Ltda.,12345678000101,Varejo de móveis,EPP,Brasília,DF,"Rede com 6 lojas de móveis e decoração, vendas também por e-commerce, buscando organizar carteira de clientes.",casanovamoveis.com.br,contato@casanovamoveis.com.br,(61) 3333-1001,42
+Supermercados Planalto S.A.,22345678000102,Supermercado,Grande,Goiânia,GO,Rede regional de supermercados com 18 unidades e centro de distribuição próprio.,planaltosuper.com.br,comercial@planaltosuper.com.br,(62) 3333-1002,1200
+Rede Bom Preço Atacado,32345678000103,Atacado de alimentos,Média,Anápolis,GO,Atacarejo com foco em pequenos comerciantes; expandindo para três novas cidades.,bomprecoatacado.com.br,vendas@bomprecoatacado.com.br,(62) 3333-1003,210
+Arenas Distribuidora,42345678000104,Distribuição de bebidas,Média,Brasília,DF,"Distribuidora de bebidas para bares e restaurantes, frota própria de 40 caminhões.",arenasdistribuidora.com.br,,(61) 3333-1004,150
+Varejo Brasília Ltda.,52345678000105,Varejo de eletrônicos,EPP,Brasília,DF,Loja de eletrônicos e celulares com duas filiais em shoppings.,varejobsb.com.br,sac@varejobsb.com.br,(61) 3333-1005,35
+Eletro Mais S.A.,62345678000106,Varejo de eletrodomésticos,Grande,São Paulo,SP,Rede nacional de eletrodomésticos com 90 lojas e marketplace próprio.,eletromais.com.br,b2b@eletromais.com.br,(11) 3333-1006,3500
+Casa & Cia,72345678000107,Varejo de utilidades domésticas,EPP,Taguatinga,DF,"Loja de utilidades e presentes, atende varejo e pequenas empresas.",casaecia.com.br,,(61) 3333-1007,18
+Rede Tarumã,82345678000108,Supermercado,Média,Uberlândia,MG,"Supermercados de bairro, 9 lojas, investindo em CRM e programa de fidelidade.",redetaruma.com.br,contato@redetaruma.com.br,(34) 3333-1008,480
+Boa Compra Atacado,92345678000109,Atacado de alimentos,Média,Goiânia,GO,Atacado de secos e molhados para mercados independentes do Centro-Oeste.,boacompra.com.br,comercial@boacompra.com.br,(62) 3333-1009,190
+Super Pleno,10345678000110,Supermercado,EPP,Ceilândia,DF,Mercado de vizinhança com duas lojas e entrega por aplicativo.,superpleno.com.br,,(61) 3333-1010,45
+Comercial Vitória,11345678000111,Atacado de materiais de construção,Média,Vitória,ES,Distribuidor de materiais de construção para lojas do Espírito Santo.,comercialvitoria.com.br,vendas@comercialvitoria.com.br,(27) 3333-1011,130
+Padaria Pão Dourado,12445678000112,Padaria,ME,Brasília,DF,Padaria artesanal de bairro com café e encomendas.,,paodourado@gmail.com,(61) 9999-1012,8
+TechNova Software,13445678000113,Software B2B,EPP,Florianópolis,SC,Startup de software de gestão financeira para clínicas.,technova.io,hello@technova.io,(48) 3333-1013,30
+Farmácias Saúde Já,14445678000114,Varejo farmacêutico,Grande,Belo Horizonte,MG,Rede de farmácias com 140 lojas em MG e GO.,saudeja.com.br,compras@saudeja.com.br,(31) 3333-1014,2100
+Moda Cerrado,15445678000115,Varejo de vestuário,EPP,Goiânia,GO,"Rede de lojas de moda feminina, 5 unidades e loja virtual.",modacerrado.com.br,contato@modacerrado.com.br,(62) 3333-1015,40
+Auto Peças Central,16445678000116,Varejo de autopeças,ME,Sobradinho,DF,Loja de autopeças e acessórios automotivos.,,autopecascentral@hotmail.com,(61) 3333-1016,7
+Distribuidora Horizonte,17445678000117,Distribuição de alimentos,Grande,Campinas,SP,Distribuidor de alimentos congelados para redes de varejo do Sudeste.,horizontedist.com.br,comercial@horizontedist.com.br,(19) 3333-1017,800
+Mercadinho Família,18445678000118,Supermercado,ME,Gama,DF,Mercadinho familiar de bairro.,,,(61) 9999-1018,5
+Atacadão do Lar,19445678000119,Atacado de utilidades,Média,Brasília,DF,Atacado de utilidades domésticas para revendedores de todo o DF.,atacadaodolar.com.br,vendas@atacadaodolar.com.br,(61) 3333-1019,95
+Clínica Sorriso Pleno,20445678000120,Odontologia,ME,Brasília,DF,Clínica odontológica com três consultórios.,sorrisopleno.com.br,agenda@sorrisopleno.com.br,(61) 3333-1020,12
+Construtora Alvorada,21445678000121,Construção civil,Grande,Brasília,DF,Construtora de empreendimentos residenciais no DF e entorno.,alvorada.eng.br,contato@alvorada.eng.br,(61) 3333-1021,600
+Hortifruti Verde Vale,22445678000122,Varejo de hortifruti,EPP,Águas Claras,DF,Rede de hortifrutis com 4 lojas e venda por assinatura.,verdevale.com.br,,(61) 3333-1022,38
+Pet Shop Amigo Fiel,23445678000123,Varejo pet,ME,Brasília,DF,Pet shop com banho e tosa.,,amigofiel@gmail.com,(61) 9999-1023,6
+Rede Econômica de Supermercados,24445678000124,Supermercado,Grande,Salvador,BA,Rede de supermercados com 60 lojas no Nordeste.,redeeconomica.com.br,b2b@redeeconomica.com.br,(71) 3333-1024,4000
+Calçados Passo Firme,25445678000125,Varejo de calçados,EPP,Anápolis,GO,Rede de calçados com 7 lojas em Goiás.,passofirme.com.br,contato@passofirme.com.br,(62) 3333-1025,48
+CASA NOVA MÓVEIS LTDA,12.345.678/0001-01,Varejo de móveis,EPP,Brasília,DF,Duplicata (mesmo CNPJ com outra formatação).,https://www.casanovamoveis.com.br/,contato@casanovamoveis.com.br,(61) 3333-1001,42
+Super Pleno,,Supermercado,EPP,Ceilândia,DF,Duplicata sem CNPJ (mesmo nome e cidade).,,,(61) 3333-1010,45
+,,,,,,Linha sem nome de empresa (será descartada).,,,,
