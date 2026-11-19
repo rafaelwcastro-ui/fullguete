@@ -3,7 +3,7 @@
 Portal em Streamlit que recebe uma planilha de empresas, limpa os dados e gera um ranking de
 prioridade comparando cada lead com o **perfil do cliente ideal (ICP)**.
 
-- **Claude (Anthropic)** avalia setor, porte, localização e descrição e devolve nota de 0 a 100 + justificativa.
+- **IA (Claude, da Anthropic, ou OpenAI)** avalia setor, porte, localização e descrição e devolve nota de 0 a 100 + justificativa.
 - **Sem chave de API**, o portal usa uma análise local (similaridade TF-IDF + regras).
 - Acesso com **usuário e senha**.
 - Histórico em **SQLite**, exportação em **CSV/Excel**, identidade visual Fullguete.
@@ -14,7 +14,7 @@ prioridade comparando cada lead com o **perfil do cliente ideal (ICP)**.
 app.py                     # interface Streamlit
 fullguete/
   dados.py                 # leitura de CSV/Excel, padronização e remoção de duplicatas
-  score_ia.py              # pontuação com Claude (saída JSON estruturada, lotes paralelos)
+  score_ia.py              # pontuação com Claude ou OpenAI (saída JSON estruturada, lotes paralelos)
   score_local.py           # pontuação local sem IA
   banco.py                 # histórico em SQLite
   models.py                # perfil do cliente ideal
@@ -58,7 +58,9 @@ Só a coluna de **nome da empresa** é obrigatória. As demais são reconhecidas
 3. Em **Advanced settings → Python version**, escolha **3.11**.
 4. Em **Secrets**, cole:
    ```toml
-   ANTHROPIC_API_KEY = "sk-ant-..."
+   ANTHROPIC_API_KEY = "sk-ant-..."   # opcional
+   OPENAI_API_KEY = "sk-..."          # opcional
+   OPENAI_MODEL = "gpt-5-mini"        # opcional
 
    [usuarios.admin]
    nome = "Rafael"
@@ -73,7 +75,7 @@ Só a coluna de **nome da empresa** é obrigatória. As demais são reconhecidas
 
 ## Custos e segurança
 
-- A chave da Anthropic fica só nos *Secrets*, nunca no código.
+- As chaves da Anthropic e da OpenAI ficam só nos *Secrets*, nunca no código.
 - O portal exige **usuário e senha**. As senhas ficam só como hash PBKDF2 nos Secrets; após 5 erros
   o login bloqueia por 60 segundos.
 - Para criar ou trocar um usuário: `.venv/bin/python -m fullguete.auth <usuario> "Nome"`. A senha aleatória

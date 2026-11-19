@@ -66,21 +66,30 @@ def usuarios_configurados() -> dict:
     return {str(k).lower(): dict(v) for k, v in bruto.items() if isinstance(v, Mapping) and v.get("senha_hash")}
 
 
-API_KEY = segredo("ANTHROPIC_API_KEY")
-if not API_KEY.startswith("sk-ant-") or API_KEY == "sk-ant-...":  # ignora o valor de exemplo
-    API_KEY = ""
+def chave(nome: str, prefixo: str) -> str:
+    valor = segredo(nome)
+    # ignora vazio e os valores de exemplo do secrets.toml.example
+    return valor if valor.startswith(prefixo) and not valor.endswith("...") else ""
+
+
+# Rótulo na tela -> (provedor, chave, modelo)
+IAS: dict[str, tuple[str, str, str]] = {}
+if k := chave("ANTHROPIC_API_KEY", "sk-ant-"):
+    IAS["Claude (IA)"] = ("anthropic", k, score_ia.MODELO)
+if k := chave("OPENAI_API_KEY", "sk-"):
+    IAS["OpenAI (IA)"] = ("openai", k, segredo("OPENAI_MODEL") or score_ia.MODELO_OPENAI_PADRAO)
 
 usuario = auth.exigir_login(usuarios_configurados(), logo=str(RAIZ / "assets/logo.png"))
 
 with st.sidebar:
     st.image(str(RAIZ / "assets/logo.png"), width="stretch")
     st.markdown("### Motor de análise")
-    opcoes = ["Claude (IA)", "Análise local"] if API_KEY else ["Análise local"]
+    opcoes = [*IAS, "Análise local"]
     metodo = st.radio("Como pontuar os leads", opcoes, label_visibility="collapsed")
-    if not API_KEY:
-        st.info("Sem chave da Anthropic configurada: o portal usa a análise local de similaridade textual.")
-    elif metodo == "Claude (IA)":
-        st.caption(f"Modelo: `{score_ia.MODELO}` · até {MAX_LEADS_IA} leads por análise.")
+    if not IAS:
+        st.info("Nenhuma chave de IA configurada (Anthropic ou OpenAI): o portal usa a análise local.")
+    elif metodo in IAS:
+        st.caption(f"Modelo: `{IAS[metodo][2]}` · até {MAX_LEADS_IA} leads por análise.")
     st.divider()
     st.caption(f"Conectado como **{usuario['nome']}**")
     if st.button("Sair", width="stretch"):
@@ -105,7 +114,7 @@ def para_excel(df: pd.DataFrame) -> bytes:
 
 
 def exibir_ranking(ranking: pd.DataFrame, metodo_usado: str, chave: str) -> None:
-    classe = "" if metodo_usado.startswith("Claude") else " local"
+    classe = " local" if metodo_usado.startswith("Análise local") else ""
     st.markdown(f'<span class="fg-badge{classe}">Pontuado por: {metodo_usado}</span>', unsafe_allow_html=True)
     st.write("")
 
@@ -240,14 +249,15 @@ with aba_nova:
             st.warning("Informe pelo menos a descrição ou os setores do cliente ideal.")
         else:
             metodo_usado = metodo
-            if metodo == "Claude (IA)" and len(leads) > MAX_LEADS_IA:
+            if metodo in IAS and len(leads) > MAX_LEADS_IA:
                 st.warning(f"A base tem {len(leads)} leads; a IA avalia até {MAX_LEADS_IA}. "
                            "Usando a análise local para a base inteira.")
                 metodo_usado = "Análise local"
-            if metodo_usado == "Claude (IA)":
-                barra = st.progress(0.0, text="Claude está avaliando os leads…")
+            if metodo_usado in IAS:
+                provedor, api_key, modelo = IAS[metodo_usado]
+                barra = st.progress(0.0, text=f"{metodo_usado.replace(' (IA)', '')} está avaliando os leads…")
                 try:
-                    pontuado = score_ia.pontuar(leads, icp, API_KEY,
+                    pontuado = score_ia.pontuar(leads, icp, api_key, provedor=provedor, modelo=modelo,
                                                 progresso=lambda p: barra.progress(p, text=f"Avaliando… {p:.0%}"))
                 except score_ia.ErroIA as e:
                     st.warning(f"{e} Usando a análise local.")
@@ -301,8 +311,8 @@ with aba_sobre:
 2. **Limpeza (Python + Pandas).** Padroniza textos, CNPJ, e-mail, site e porte; descarta linhas sem nome
    e remove duplicatas pelo CNPJ ou, sem ele, pelo nome + cidade.
 3. **Pontuação.**
-   - **Claude (IA):** o modelo `{score_ia.MODELO}`, da Anthropic, compara setor, porte, localização e descrição
-     de cada empresa com o perfil do cliente ideal e devolve, em JSON estruturado, uma nota de 0 a 100 e a
+   - **IA (Claude, da Anthropic, ou OpenAI):** o modelo lê setor, porte, localização e a descrição livre de
+     cada empresa, compara com o perfil do cliente ideal e devolve, em JSON estruturado, uma nota de 0 a 100 e a
      justificativa. Os leads vão em lotes de {score_ia.TAMANHO_LOTE}, processados em paralelo.
    - **Análise local:** sem chave de API, a nota combina similaridade textual TF-IDF com o perfil (40 pts),
      setor (25), porte (20) e localização (15).
