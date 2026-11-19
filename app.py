@@ -12,7 +12,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from fullguete import auth, banco, dados, score_ia, score_local
+from fullguete import area_bdr, area_captura, auth, banco, dados, score_ia, score_local
 from fullguete.models import PORTES, PerfilClienteIdeal
 
 RAIZ = Path(__file__).parent
@@ -87,7 +87,8 @@ with st.sidebar:
     st.image(str(RAIZ / "assets/logo.png"), width="stretch")
     st.markdown("### Motor de análise")
     opcoes = [*IAS, "Análise local"]
-    metodo = st.radio("Como pontuar os leads", opcoes, label_visibility="collapsed")
+    padrao = opcoes.index("Gemini (IA)") if "Gemini (IA)" in opcoes else 0
+    metodo = st.radio("Como pontuar os leads", opcoes, index=padrao, label_visibility="collapsed")
     if not IAS:
         st.info("Nenhuma chave de IA configurada (Anthropic, OpenAI ou Gemini): o portal usa a análise local.")
     elif metodo in IAS:
@@ -100,11 +101,11 @@ with st.sidebar:
     st.divider()
     st.caption("Fullguete · Inteligência que acelera vendas.")
 
-st.title("Ranking de Leads")
-st.markdown('<p class="fg-slogan">Envie sua base, descreva o cliente ideal e veja quem abordar primeiro.</p>',
+st.title("Fullguete")
+st.markdown('<p class="fg-slogan">Capture empresas, gere um ranking e acompanhe a prospecção.</p>',
             unsafe_allow_html=True)
 
-aba_nova, aba_hist, aba_sobre = st.tabs(["Nova análise", "Histórico", "Como funciona"])
+aba_nova, aba_bdr, aba_hist, aba_sobre = st.tabs(["Nova análise", "Área do BDR", "Histórico", "Como funciona"])
 
 
 # ---------- utilidades de exibição ----------
@@ -152,11 +153,17 @@ def exibir_ranking(ranking: pd.DataFrame, metodo_usado: str, chave: str) -> None
         },
     )
 
+    exportacao = ranking[colunas].copy()
+    for coluna in exportacao.select_dtypes(include=["object", "string"]):
+        exportacao[coluna] = exportacao[coluna].map(
+            lambda valor: "'" + valor if isinstance(valor, str) and valor.lstrip().startswith(("=", "+", "-", "@")) else valor,
+        )
     d1, d2, _ = st.columns([1, 1, 3])
-    d1.download_button("Baixar CSV", ranking[colunas].to_csv(index=False).encode("utf-8-sig"),
-                       "ranking_leads.csv", "text/csv", key=f"csv_{chave}")
-    d2.download_button("Baixar Excel", para_excel(ranking[colunas]), "ranking_leads.xlsx",
-                       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"xlsx_{chave}")
+    d1.download_button("Baixar CSV", exportacao.to_csv(index=False).encode("utf-8-sig"),
+                       "ranking_leads.csv", "text/csv", key=f"csv_{chave}", on_click="ignore")
+    d2.download_button("Baixar Excel", para_excel(exportacao), "ranking_leads.xlsx",
+                       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                       key=f"xlsx_{chave}", on_click="ignore")
 
     g1, g2 = st.columns(2)
     layout = dict(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#E6E9F5",
@@ -185,48 +192,47 @@ def exibir_ranking(ranking: pd.DataFrame, metodo_usado: str, chave: str) -> None
 # ---------- aba: nova análise ----------
 with aba_nova:
     st.markdown("### 1. Base de leads")
-    col_up, col_ex = st.columns([3, 1])
-    arquivo = col_up.file_uploader("Planilha Excel ou CSV", type=["csv", "xlsx", "xls"],
-                                   help="Precisa de uma coluna com o nome da empresa. "
-                                        "Também usamos setor, porte, cidade, UF e descrição, se existirem.")
-    col_ex.write("")
-    col_ex.write("")
-    if col_ex.button("Usar planilha de exemplo", width="stretch"):
-        st.session_state["usar_exemplo"] = True
-    if arquivo is not None:
-        st.session_state["usar_exemplo"] = False
-
-    origem = None
-    if arquivo is not None:
-        origem = (arquivo, arquivo.name)
-    elif st.session_state.get("usar_exemplo"):
-        origem = (str(EXEMPLO), EXEMPLO.name)
-
+    fonte = st.radio("Fonte dos leads", ["API de CNPJ", "Planilha", "Base fictícia"], horizontal=True)
     leads = None
-    if origem:
+    origem = fonte
+    if fonte == "API de CNPJ":
+        leads, origem = area_captura.exibir(segredo("CNPJ_WS_TOKEN"), UFS)
+    elif fonte == "Planilha":
+        arquivo = st.file_uploader("Planilha Excel ou CSV", type=["csv", "xlsx", "xls"],
+                                   help="Inclua uma coluna com o nome da empresa.")
+        if arquivo is not None:
+            origem = arquivo.name
+            try:
+                leads, rel = dados.limpar(dados.ler_planilha(arquivo, arquivo.name))
+            except Exception as e:
+                st.error(f"Não consegui ler a planilha: {e}")
+    else:
         try:
-            bruto = dados.ler_planilha(origem[0], origem[1])
-            leads, rel = dados.limpar(bruto)
-        except Exception as e:  # erro de leitura vira mensagem amigável
-            st.error(f"Não consegui ler a planilha: {e}")
-        else:
-            st.success(
-                f"**{origem[1]}** · {rel['linhas_lidas']} linhas lidas → **{rel['leads_validos']} leads válidos** "
-                f"({rel['duplicadas']} duplicadas e {rel['sem_nome']} sem nome removidas)."
-            )
-            with st.expander("Ver dados limpos"):
-                st.dataframe(leads, hide_index=True, width="stretch")
+            leads, rel = dados.limpar(dados.ler_planilha(str(EXEMPLO), EXEMPLO.name))
+        except (OSError, ValueError) as e:
+            st.error(f"Não consegui ler a base fictícia: {e}")
+
+    if fonte != "API de CNPJ" and leads is not None:
+        st.success(
+            f"{rel['linhas_lidas']} linhas lidas · {rel['leads_validos']} leads válidos · "
+            f"{rel['duplicadas']} duplicadas e {rel['sem_nome']} sem nome removidas."
+        )
+        with st.expander("Ver dados limpos"):
+            st.dataframe(leads, hide_index=True, width="stretch")
+        if leads.empty:
+            leads = None
 
     st.markdown("### 2. Perfil do cliente ideal")
-    if st.session_state.get("usar_exemplo") and not st.session_state.get("icp_exemplo_aplicado"):
+    if fonte == "Base fictícia" and not st.session_state.get("icp_exemplo_aplicado"):
         st.session_state["icp_exemplo_aplicado"] = True
-        st.session_state.update(
-            icp_desc="Redes de varejo e atacado de alimentos ou bens de consumo com várias lojas, "
-                     "em expansão, que precisam organizar a carteira e priorizar vendas.",
-            icp_setores="Supermercado, Atacado, Varejo",
-            icp_portes=["EPP", "Média", "Grande"],
-            icp_ufs=["DF", "GO"],
-        )
+        if not (st.session_state.get("icp_desc") or st.session_state.get("icp_setores")):
+            st.session_state.update(
+                icp_desc="Redes de varejo e atacado de alimentos ou bens de consumo com várias lojas, "
+                         "em expansão, que precisam organizar a carteira e priorizar vendas.",
+                icp_setores="Supermercado, Atacado, Varejo",
+                icp_portes=["EPP", "Média", "Grande"],
+                icp_ufs=["DF", "GO"],
+            )
     with st.form("icp"):
         descricao = st.text_area("Descreva o cliente ideal", key="icp_desc", height=90,
                                  placeholder="Ex.: redes de supermercados regionais, com 5 ou mais lojas, que investem em tecnologia…")
@@ -270,12 +276,15 @@ with aba_nova:
 
             ranking = pontuado.sort_values(["score", "empresa"], ascending=[False, True]).reset_index(drop=True)
             ranking.insert(0, "posicao", range(1, len(ranking) + 1))
-            analise_id = banco.salvar(ranking, icp.to_dict(), metodo_usado, origem[1])
-            st.session_state["resultado"] = (ranking, metodo_usado, analise_id)
+            analise_id = banco.salvar(ranking, icp.to_dict(), metodo_usado, origem)
+            st.session_state["resultado"] = (ranking, metodo_usado, analise_id, origem)
 
     if "resultado" in st.session_state:
-        ranking, metodo_usado, analise_id = st.session_state["resultado"]
+        ranking, metodo_usado, analise_id, *origens = st.session_state["resultado"]
+        origem_ranking = origens[0] if origens else "Planilha"
         st.markdown("### 3. Ranking")
+        st.text(f"Base avaliada: {origem_ranking}")
+        area_bdr.enviar_ranking(ranking, usuario["login"], analise_id, origem_ranking, metodo_usado, f"nova_{analise_id}")
         exibir_ranking(ranking, metodo_usado, f"nova_{analise_id}")
 
 
@@ -296,22 +305,30 @@ with aba_hist:
         with st.expander("Perfil de cliente ideal usado"):
             st.json(icp)
         leads_hist = banco.carregar_leads(escolhida)
+        area_bdr.enviar_ranking(
+            leads_hist, usuario["login"], escolhida, linha["arquivo"] or "Planilha", linha["metodo"], f"hist_{escolhida}",
+        )
         exibir_ranking(leads_hist, linha["metodo"], f"hist_{escolhida}")
         if st.button("Excluir esta análise", type="secondary"):
             banco.excluir(escolhida)
             st.rerun()
 
 
+# ---------- aba: área do BDR ----------
+with aba_bdr:
+    area_bdr.exibir(usuario["login"])
+
+
 # ---------- aba: como funciona ----------
 with aba_sobre:
     st.markdown(
         f"""
-### Do arquivo ao ranking
+### Da captura à prospecção
 
-1. **Importação.** Você envia uma planilha Excel ou CSV. O portal reconhece os nomes de coluna mais comuns
-   (empresa, razão social, segmento, município…) e aceita CSV separado por vírgula ou ponto e vírgula.
+1. **Captura.** Busque empresas ativas por CNAE e região com o CNPJ.ws Comercial, consulte CNPJs
+   conhecidos ou envie uma planilha Excel ou CSV.
 2. **Limpeza (Python + Pandas).** Padroniza textos, CNPJ, e-mail, site e porte; descarta linhas sem nome
-   e remove duplicatas pelo CNPJ ou, sem ele, pelo nome + cidade.
+   e remove duplicatas pelo CNPJ ou, sem ele, pelo nome, cidade e UF.
 3. **Pontuação.**
    - **IA (Claude, OpenAI ou Gemini):** o modelo lê setor, porte, localização e a descrição livre de
      cada empresa, compara com o perfil do cliente ideal e devolve, em JSON estruturado, uma nota de 0 a 100 e a
@@ -319,5 +336,7 @@ with aba_sobre:
    - **Análise local:** sem chave de API, a nota combina similaridade textual TF-IDF com o perfil (40 pts),
      setor (25), porte (20) e localização (15).
 4. **Ranking e histórico.** O resultado é ordenado, salvo em SQLite e pode ser exportado em CSV ou Excel.
+5. **Área do BDR.** Envie as empresas escolhidas para sua carteira. Registre etapa, atividade,
+   próxima ação e data de retorno na ficha de cada lead.
 """
     )

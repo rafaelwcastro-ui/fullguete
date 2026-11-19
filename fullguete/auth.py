@@ -87,7 +87,7 @@ def exigir_login(usuarios: dict, logo: str | None = None) -> dict:
 def sair() -> None:
     import streamlit as st
 
-    st.session_state.pop("usuario", None)
+    st.session_state.clear()
 
 
 _HASH_FALSO = gerar_hash(secrets.token_urlsafe(16))

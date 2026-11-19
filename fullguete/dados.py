@@ -43,6 +43,10 @@ def _normaliza(texto: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", texto.lower()).strip("_")
 
 
+def identidade_empresa(empresa: str, cidade: str, uf: str) -> str:
+    return "|".join(map(_normaliza, (empresa, cidade, uf)))
+
+
 def ler_planilha(arquivo: IO[bytes] | str, nome: str | None = None) -> pd.DataFrame:
     nome = (nome or getattr(arquivo, "name", "") or str(arquivo)).lower()
     if nome.endswith((".xlsx", ".xls")):
@@ -110,14 +114,15 @@ def limpar(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     df = df[df["empresa"] != ""]
     sem_nome = original - len(df)
 
-    # Duplicatas: mesmo CNPJ (quando houver) e, depois, mesmo nome normalizado + cidade.
-    # Ordena para manter a linha mais completa de cada grupo.
+    # CNPJs distintos identificam estabelecimentos distintos, mesmo quando têm o mesmo nome.
     antes = len(df)
     df = df.assign(_preenchidos=(df[COLUNAS] != "").sum(axis=1)).sort_values("_preenchidos", ascending=False, kind="stable")
-    tem_cnpj = df["cnpj"].str.len() >= 11
+    tem_cnpj = df["cnpj"].str.len().eq(14)
     df = df[~(tem_cnpj & df["cnpj"].duplicated())]
-    nome_cidade = df["empresa"].map(_normaliza) + "|" + df["cidade"].map(_normaliza)
-    df = df[~nome_cidade.duplicated()].sort_index().drop(columns="_preenchidos").reset_index(drop=True)
+    tem_cnpj = df["cnpj"].str.len().eq(14)
+    nome_local = df["empresa"].map(_normaliza) + "|" + df["cidade"].map(_normaliza) + "|" + df["uf"].map(_normaliza)
+    sem_cnpj_unico = ~nome_local.isin(nome_local[tem_cnpj]) & ~nome_local.duplicated()
+    df = df[tem_cnpj | sem_cnpj_unico].sort_index().drop(columns="_preenchidos").reset_index(drop=True)
     duplicadas = antes - len(df)
 
     df.insert(0, "id", range(1, len(df) + 1))
