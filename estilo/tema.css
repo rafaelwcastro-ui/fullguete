@@ -1,0 +1,83 @@
+/* Complemento mínimo ao tema do .streamlit/config.toml. */
+:root {
+  --fg-fundo: #0B1220;
+  --fg-menu: #0D1726;
+  --fg-cartao: #111C2E;
+  --fg-borda: #1E2B40;
+  --fg-texto: #E6EDF5;
+  --fg-texto-2: #8FA3BC;
+  --fg-destaque: #2DD4BF;
+  --fg-destaque-fundo: #15302F;
+  --fg-alerta: #F5C778;
+  --fg-erro: #FCA5A5;
+  --fg-info: #60A5FA;
+}
+
+/* Menu lateral: rótulos de seção em caixa alta e item ativo em verde água */
+[data-testid="stNavSectionHeader"] {
+  color: var(--fg-texto-2) !important;
+  font-size: .72rem !important;
+  font-weight: 600 !important;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+[data-testid="stSidebarNavLink"][aria-current="page"] {
+  background: var(--fg-destaque-fundo) !important;
+}
+[data-testid="stSidebarNavLink"][aria-current="page"] span {
+  color: var(--fg-destaque) !important;
+}
+
+/* Cartões de métrica */
+[data-testid="stMetric"] {
+  background: var(--fg-cartao);
+  border: 1px solid var(--fg-borda);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+[data-testid="stMetricLabel"] p { color: var(--fg-texto-2); }
+
+/* Componentes próprios */
+.fg-rotulo {
+  color: var(--fg-texto-2);
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  margin: 0 0 6px 0;
+}
+.fg-subtitulo { color: var(--fg-texto-2); margin-top: -8px; margin-bottom: 16px; }
+.fg-cartao {
+  background: var(--fg-cartao);
+  border: 1px solid var(--fg-borda);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  font-size: .9rem;
+  line-height: 1.45;
+}
+.fg-cartao b { font-size: 1rem; font-weight: 600; }
+.fg-cartao p, .fg-cartao li { font-size: .9rem !important; line-height: 1.45; }
+.fg-selo {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 600;
+  border: 1px solid var(--fg-borda);
+  color: var(--fg-texto-2);
+  background: var(--fg-cartao);
+  white-space: nowrap;
+}
+.fg-selo.destaque { color: var(--fg-destaque); border-color: #1F5A55; background: var(--fg-destaque-fundo); }
+.fg-selo.alerta   { color: var(--fg-alerta);   border-color: #5C4A26; background: #2A2312; }
+.fg-selo.erro     { color: var(--fg-erro);     border-color: #5A2E2E; background: #2A1515; }
+.fg-selo.info     { color: var(--fg-info);     border-color: #26406A; background: #121E33; }
+
+.fg-rodape {
+  color: var(--fg-texto-2);
+  font-size: .78rem;
+  border-top: 1px solid var(--fg-borda);
+  margin-top: 48px;
+  padding-top: 12px;
+}

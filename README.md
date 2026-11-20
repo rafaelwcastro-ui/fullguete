@@ -1,3 +1,8 @@
+> **Fullguete v2 em construção (branch `fullguete-v2`).** O código da v1 descrito abaixo foi movido para
+> `legado/v1/`. Para rodar a v2: copie `.env.example` para `.env`, instale `requirements.txt` e rode
+> `.venv/bin/streamlit run app.py`. No modo simulado, a tela de login oferece perfis de demonstração
+> (senha `fullguete-demo`). Este README será reescrito por completo na fase 7.
+
 # Fullguete · Captura, ranking e área do BDR
 
 Portal em Streamlit que captura empresas via CNPJ.ws ou importa planilhas, limpa os dados e

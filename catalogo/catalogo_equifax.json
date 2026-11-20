@@ -1,0 +1,420 @@
+{
+  "versao": "2026-11-20",
+  "fonte": "https://www.equifax.com.br/negocios/todos-os-produtos/",
+  "aviso": "Resumos escritos para um protótipo acadêmico. Os nomes seguem o site da Equifax em 20/11/2026. Sem vínculo com a Equifax.",
+  "linhas": [
+    {"id": "credito_decisao", "nome": "Crédito e decisão"},
+    {"id": "monitoramento", "nome": "Monitoramento de carteira"},
+    {"id": "fraude", "nome": "Identidade e prevenção a fraude"},
+    {"id": "cobranca", "nome": "Cobrança e recuperação"},
+    {"id": "prospeccao", "nome": "Prospecção e marketing"}
+  ],
+  "solucoes": [
+    {
+      "id": "relatorio_credito_pj",
+      "nome": "Relatório de Crédito Pessoa Jurídica",
+      "linha": "credito_decisao",
+      "o_que_resolve": "Mostra a saúde financeira de uma empresa antes de vender a prazo ou fechar parceria.",
+      "sinais": ["vende_prazo_pj", "credito_pme"],
+      "perfil_tipico": "Atacado, distribuição e indústria que faturam com boleto para outras empresas.",
+      "perguntas_descoberta": [
+        "Quantos clientes novos vocês aprovam a prazo por mês?",
+        "Como vocês decidem hoje o limite de um cliente empresa?",
+        "Quanto da receita ficou parada em atraso no último ano?"
+      ],
+      "complementares": ["onescore_pj", "gerenciamento_carteira", "protesto"]
+    },
+    {
+      "id": "relatorio_credito_pf",
+      "nome": "Relatório de Crédito Pessoa Física (PF)",
+      "linha": "credito_decisao",
+      "o_que_resolve": "Reúne o histórico de crédito de uma pessoa para apoiar vendas parceladas e contratos.",
+      "sinais": ["crediario_pf", "recorrencia_pf"],
+      "perfil_tipico": "Varejo com crediário, imobiliárias e serviços com pagamento recorrente.",
+      "perguntas_descoberta": [
+        "Que parte das vendas é feita no crediário ou no carnê?",
+        "Como o cliente é aprovado hoje no balcão?",
+        "Qual é a taxa de atraso das vendas parceladas?"
+      ],
+      "complementares": ["onescore_pf", "acerta_consulta_cpf", "negativacao"]
+    },
+    {
+      "id": "acerta_consulta_cpf",
+      "nome": "Acerta I Consulta CPF",
+      "linha": "credito_decisao",
+      "o_que_resolve": "Junta dados cadastrais, comportamentais e negativos da pessoa física com análise preditiva.",
+      "sinais": ["recorrencia_pf", "crediario_pf"],
+      "perfil_tipico": "Escolas, clínicas, locadoras e lojas que vendem para pessoa física com pagamento mensal.",
+      "perguntas_descoberta": [
+        "Vocês consultam o CPF antes de fechar matrícula, contrato ou aluguel?",
+        "Que dados do cliente costumam faltar no cadastro?",
+        "Quantas consultas de CPF vocês fazem por mês?"
+      ],
+      "complementares": ["relatorio_credito_pf", "onescore_pf"]
+    },
+    {
+      "id": "onescore_pf",
+      "nome": "Equifax OneScore Pessoa Física",
+      "linha": "credito_decisao",
+      "o_que_resolve": "Score de crédito de pessoa física construído com inteligência artificial.",
+      "sinais": ["crediario_pf", "concede_credito"],
+      "perfil_tipico": "Varejo com crediário, financeiras e fintechs que aprovam crédito ao consumidor.",
+      "perguntas_descoberta": [
+        "Qual score vocês usam hoje e como ele tem performado?",
+        "Quantas propostas de pessoa física vocês analisam por dia?",
+        "Qual é a meta de aprovação sem aumentar a inadimplência?"
+      ],
+      "complementares": ["cadastro_positivo_analitico", "interconnect"]
+    },
+    {
+      "id": "onescore_pj",
+      "nome": "Equifax OneScore Pessoa Jurídica",
+      "linha": "credito_decisao",
+      "o_que_resolve": "Score de empresas que usa dados bancários e fiscais para medir o risco de PMEs.",
+      "sinais": ["credito_pme", "vende_prazo_pj"],
+      "perfil_tipico": "Negócios B2B com carteira pulverizada de pequenas empresas e quem concede crédito a PMEs.",
+      "perguntas_descoberta": [
+        "Quantas das empresas clientes são pequenas ou médias?",
+        "Vocês têm dados suficientes para avaliar uma empresa nova?",
+        "Como o limite de crédito é revisto ao longo do tempo?"
+      ],
+      "complementares": ["relatorio_credito_pj", "recomendacao_credito_inteligente"]
+    },
+    {
+      "id": "cadastro_positivo_analitico",
+      "nome": "Cadastro Positivo Analítico",
+      "linha": "credito_decisao",
+      "o_que_resolve": "Análises sob medida a partir dos dados do Cadastro Positivo.",
+      "sinais": ["concede_credito", "time_dados"],
+      "perfil_tipico": "Financeiras, fintechs e bancos que querem enxergar o bom pagador além da negativação.",
+      "perguntas_descoberta": [
+        "Vocês já usam dados do Cadastro Positivo na decisão?",
+        "Que público vocês recusam hoje por falta de informação?",
+        "Que análise vocês gostariam de ter e ainda não têm?"
+      ],
+      "complementares": ["book_atributos", "onescore_pf"]
+    },
+    {
+      "id": "book_atributos",
+      "nome": "Book de Atributos",
+      "linha": "credito_decisao",
+      "o_que_resolve": "Entrega uma base de variáveis prontas para quem constrói modelos próprios de crédito.",
+      "sinais": ["time_dados", "concede_credito"],
+      "perfil_tipico": "Empresas com time de dados ou modelagem interna de risco.",
+      "perguntas_descoberta": [
+        "Vocês têm time de modelagem ou ciência de dados?",
+        "Com que frequência os modelos de risco são recalibrados?",
+        "Quais variáveis externas fazem falta nos modelos atuais?"
+      ],
+      "complementares": ["cadastro_positivo_analitico", "interconnect"]
+    },
+    {
+      "id": "interconnect",
+      "nome": "InterConnect",
+      "linha": "credito_decisao",
+      "o_que_resolve": "Plataforma de apoio à decisão que automatiza políticas de crédito em grande volume.",
+      "sinais": ["alto_volume_decisoes", "concede_credito"],
+      "perfil_tipico": "Operações com muitas decisões por dia e várias políticas de crédito em paralelo.",
+      "perguntas_descoberta": [
+        "Quantas decisões de crédito vocês tomam por dia?",
+        "Quanto tempo leva para mudar uma regra de política hoje?",
+        "Que parte das propostas ainda passa por análise manual?"
+      ],
+      "complementares": ["interconnect_aprova", "book_atributos"]
+    },
+    {
+      "id": "interconnect_aprova",
+      "nome": "InterConnect Aprova",
+      "linha": "credito_decisao",
+      "o_que_resolve": "Análise de crédito mais rápida com recomendação pronta, inclusive para PMEs.",
+      "sinais": ["credito_pme", "alto_volume_decisoes"],
+      "perfil_tipico": "Empresas que querem acelerar a aprovação sem montar uma estrutura própria de decisão.",
+      "perguntas_descoberta": [
+        "Quanto tempo o cliente espera hoje por uma resposta de crédito?",
+        "Vocês perdem vendas por demora na aprovação?",
+        "A análise de PMEs segue a mesma regra das grandes contas?"
+      ],
+      "complementares": ["interconnect", "onescore_pj"]
+    },
+    {
+      "id": "interconnect_box_pre_qualificacao",
+      "nome": "InterConnect Box Pré-Qualificação",
+      "linha": "credito_decisao",
+      "o_que_resolve": "Separa rápido clientes de alto e baixo risco para campanhas e ofertas.",
+      "sinais": ["pre_aprovacao"],
+      "perfil_tipico": "Financeiras, varejo e telecom que fazem campanhas de pré aprovação.",
+      "perguntas_descoberta": [
+        "Vocês fazem campanhas de crédito pré aprovado?",
+        "Como a lista da campanha é filtrada hoje?",
+        "Qual é a conversão das ofertas pré aprovadas?"
+      ],
+      "complementares": ["audiencias_estrategicas", "onescore_pf"]
+    },
+    {
+      "id": "recomendacao_credito_inteligente",
+      "nome": "Recomendação de Crédito Inteligente",
+      "linha": "credito_decisao",
+      "o_que_resolve": "Decisão de crédito com inteligência artificial pensada para pequenas e médias empresas.",
+      "sinais": ["credito_pme"],
+      "perfil_tipico": "Quem vende a prazo ou empresta para PMEs e quer uma recomendação de limite.",
+      "perguntas_descoberta": [
+        "Como vocês definem o limite para uma PME sem histórico?",
+        "Quanto a inadimplência das PMEs pesa no resultado?",
+        "Quem toma a decisão final de crédito hoje?"
+      ],
+      "complementares": ["onescore_pj", "relatorio_credito_pj"]
+    },
+    {
+      "id": "scpc_net",
+      "nome": "SCPC Net",
+      "linha": "credito_decisao",
+      "o_que_resolve": "Consulta simples e barata de negativações para o pequeno negócio.",
+      "sinais": ["baixo_volume"],
+      "perfil_tipico": "Comércio local e pequenas empresas com poucas vendas a prazo.",
+      "perguntas_descoberta": [
+        "Quantas vendas a prazo vocês fazem por semana?",
+        "Vocês consultam o cliente antes de vender fiado ou parcelado?",
+        "Quanto vocês gastam hoje com consultas de crédito?"
+      ],
+      "complementares": ["negativacao", "relatorio_credito_pf"]
+    },
+    {
+      "id": "gerenciamento_carteira",
+      "nome": "Gerenciamento de carteira",
+      "linha": "monitoramento",
+      "o_que_resolve": "Acompanha os clientes empresa para avisar sobre riscos e oportunidades na carteira.",
+      "sinais": ["carteira_pj", "risco_carteira"],
+      "perfil_tipico": "Indústria, distribuição e serviços B2B com carteira grande de clientes ativos.",
+      "perguntas_descoberta": [
+        "Quantos clientes empresa estão ativos na carteira?",
+        "Como vocês ficam sabendo que um cliente piorou de risco?",
+        "Quando foi a última revisão de limites da carteira?"
+      ],
+      "complementares": ["score_comportamento", "relatorio_credito_pj"]
+    },
+    {
+      "id": "score_comportamento",
+      "nome": "Score de comportamento",
+      "linha": "monitoramento",
+      "o_que_resolve": "Mede o risco dos clientes que já estão na carteira para agir antes do atraso.",
+      "sinais": ["risco_carteira", "carteira_pj"],
+      "perfil_tipico": "Financeiras, telecom e varejo com base grande de clientes ativos.",
+      "perguntas_descoberta": [
+        "Vocês acompanham o risco dos clientes depois da aprovação?",
+        "Que ação é tomada quando um cliente começa a atrasar?",
+        "Os limites são aumentados ou reduzidos de forma automática?"
+      ],
+      "complementares": ["gerenciamento_carteira", "bluebox"]
+    },
+    {
+      "id": "bluebox",
+      "nome": "BlueBox",
+      "linha": "monitoramento",
+      "o_que_resolve": "Estratégias para tirar mais rentabilidade da carteira que já existe.",
+      "sinais": ["rentabilidade_carteira"],
+      "perfil_tipico": "Empresas com base grande de clientes que querem vender mais para quem já compra.",
+      "perguntas_descoberta": [
+        "Que parte da receita vem de clientes que já compram de vocês?",
+        "Vocês sabem quais clientes aceitariam uma oferta maior?",
+        "Como as campanhas de venda cruzada são escolhidas hoje?"
+      ],
+      "complementares": ["score_comportamento", "audiencias_estrategicas"]
+    },
+    {
+      "id": "konduto_performance",
+      "nome": "Konduto Performance",
+      "linha": "fraude",
+      "o_que_resolve": "Antifraude transacional em tempo real com aprendizado de máquina.",
+      "sinais": ["ecommerce_volume"],
+      "perfil_tipico": "E-commerce com alto volume de pedidos online.",
+      "perguntas_descoberta": [
+        "Quantos pedidos online vocês recebem por dia?",
+        "Qual é a taxa de pedidos recusados por suspeita de fraude?",
+        "A análise de fraude é feita por pessoas ou por sistema?"
+      ],
+      "complementares": ["kount_gestao_chargeback", "konduto_valida"]
+    },
+    {
+      "id": "konduto_completo",
+      "nome": "Konduto Completo",
+      "linha": "fraude",
+      "o_que_resolve": "Antifraude com revisão manual especializada para aprovar mais pedidos com segurança.",
+      "sinais": ["ecommerce_volume", "chargeback"],
+      "perfil_tipico": "Lojas online que perdem vendas boas por recusas em excesso.",
+      "perguntas_descoberta": [
+        "Quantos pedidos bons vocês acham que são recusados?",
+        "Vocês têm equipe própria para revisar pedidos suspeitos?",
+        "Quanto custa um chargeback para a operação?"
+      ],
+      "complementares": ["konduto_performance", "kount_gestao_chargeback"]
+    },
+    {
+      "id": "konduto_valida",
+      "nome": "Konduto Valida",
+      "linha": "fraude",
+      "o_que_resolve": "Onboarding mais seguro e rápido para novos clientes do e-commerce.",
+      "sinais": ["onboarding_digital", "ecommerce_volume"],
+      "perfil_tipico": "Lojas e plataformas digitais com muitos cadastros novos.",
+      "perguntas_descoberta": [
+        "Quantos cadastros novos vocês recebem por mês?",
+        "Vocês validam a identidade do cliente no cadastro?",
+        "Quanto do abandono acontece na etapa de cadastro?"
+      ],
+      "complementares": ["konduto_performance", "account_protection"]
+    },
+    {
+      "id": "kount_gestao_chargeback",
+      "nome": "Kount Gestão de Chargeback",
+      "linha": "fraude",
+      "o_que_resolve": "Reduz chargebacks e organiza a contestação das disputas.",
+      "sinais": ["chargeback"],
+      "perfil_tipico": "E-commerce e serviços digitais com cartão como meio principal de pagamento.",
+      "perguntas_descoberta": [
+        "Qual é a taxa de chargeback dos últimos meses?",
+        "Vocês contestam as disputas ou aceitam a perda?",
+        "A bandeira ou o adquirente já fez algum alerta?"
+      ],
+      "complementares": ["konduto_completo", "konduto_performance"]
+    },
+    {
+      "id": "account_protection",
+      "nome": "Account Protection",
+      "linha": "fraude",
+      "o_que_resolve": "Combate bots, contas duplicadas, abuso de promoção e tomada de conta.",
+      "sinais": ["app_marketplace", "onboarding_digital"],
+      "perfil_tipico": "Apps, marketplaces e programas de fidelidade com cadastro online.",
+      "perguntas_descoberta": [
+        "Vocês já viram contas duplicadas usando o mesmo cupom?",
+        "Houve casos de clientes que perderam acesso à conta?",
+        "Quanto do orçamento de promoção vai para contas falsas?"
+      ],
+      "complementares": ["konduto_valida", "safe_banking"]
+    },
+    {
+      "id": "safe_banking",
+      "nome": "Safe Banking",
+      "linha": "fraude",
+      "o_que_resolve": "Monitora transações entre pessoas, como Pix, para barrar golpes e contas laranja.",
+      "sinais": ["pix_p2p", "instituicao_regulada"],
+      "perfil_tipico": "Bancos digitais, carteiras digitais e instituições de pagamento.",
+      "perguntas_descoberta": [
+        "Quantas transações Pix vocês processam por dia?",
+        "Como vocês identificam uma conta laranja hoje?",
+        "Qual é o tempo de resposta para bloquear uma transferência suspeita?"
+      ],
+      "complementares": ["resolucao_6", "account_protection"]
+    },
+    {
+      "id": "resolucao_6",
+      "nome": "Resolução 6",
+      "linha": "fraude",
+      "o_que_resolve": "Apoia o cumprimento da Resolução Conjunta BACEN nº 6/2023 e o compartilhamento de dados de fraude.",
+      "sinais": ["instituicao_regulada"],
+      "perfil_tipico": "Instituições financeiras e de pagamento reguladas pelo Banco Central.",
+      "perguntas_descoberta": [
+        "Como vocês compartilham hoje os indícios de fraude exigidos pela resolução?",
+        "Quem é o responsável pelo tema de compliance de fraude?",
+        "A última auditoria apontou alguma pendência nesse ponto?"
+      ],
+      "complementares": ["safe_banking"]
+    },
+    {
+      "id": "negativacao",
+      "nome": "Negativação",
+      "linha": "cobranca",
+      "o_que_resolve": "Recupera dívidas com negativação e comunicação digital com o devedor.",
+      "sinais": ["inadimplencia", "titulos_vencidos"],
+      "perfil_tipico": "Qualquer empresa com inadimplência relevante em contas a receber.",
+      "perguntas_descoberta": [
+        "Quanto está vencido há mais de 30 dias em contas a receber?",
+        "Vocês já negativam clientes que não pagam?",
+        "Que canal de cobrança funciona melhor hoje?"
+      ],
+      "complementares": ["scpc_comunica", "protesto"]
+    },
+    {
+      "id": "protesto",
+      "nome": "Protesto",
+      "linha": "cobranca",
+      "o_que_resolve": "Protesto 100% digital de títulos vencidos, sem ir ao cartório.",
+      "sinais": ["titulos_vencidos"],
+      "perfil_tipico": "Atacado, indústria e serviços que emitem duplicatas e boletos para empresas.",
+      "perguntas_descoberta": [
+        "Quantos títulos vencidos vocês têm hoje?",
+        "Vocês já protestam títulos? Como é o processo?",
+        "Quanto tempo leva para começar a cobrança formal?"
+      ],
+      "complementares": ["negativacao", "relatorio_credito_pj"]
+    },
+    {
+      "id": "scpc_comunica",
+      "nome": "SCPC Comunica",
+      "linha": "cobranca",
+      "o_que_resolve": "Contato com o devedor para recuperar crédito antes de medidas mais duras.",
+      "sinais": ["contato_devedor", "inadimplencia"],
+      "perfil_tipico": "Escolas, clínicas, telecom e varejo com muitos devedores de valor baixo.",
+      "perguntas_descoberta": [
+        "Vocês conseguem falar com a maioria dos devedores?",
+        "Existe uma régua de cobrança com etapas definidas?",
+        "Qual é a taxa de recuperação na primeira tentativa?"
+      ],
+      "complementares": ["negativacao", "resumo_debito"]
+    },
+    {
+      "id": "resumo_debito",
+      "nome": "Resumo Débito",
+      "linha": "cobranca",
+      "o_que_resolve": "Mostra as dívidas ativas do devedor para priorizar a cobrança.",
+      "sinais": ["contato_devedor", "inadimplencia"],
+      "perfil_tipico": "Assessorias de cobrança e áreas de recuperação de crédito.",
+      "perguntas_descoberta": [
+        "Vocês sabem se o devedor tem outras dívidas abertas?",
+        "Como a fila de cobrança é priorizada hoje?",
+        "Que informação faria a negociação ser mais rápida?"
+      ],
+      "complementares": ["scpc_comunica", "negativacao"]
+    },
+    {
+      "id": "prospeccao_qualificada",
+      "nome": "Prospecção Qualificada",
+      "linha": "prospeccao",
+      "o_que_resolve": "Encontra novos clientes e oportunidades com base de dados proprietária.",
+      "sinais": ["expansao_comercial"],
+      "perfil_tipico": "Times comerciais B2B que precisam de listas qualificadas para crescer.",
+      "perguntas_descoberta": [
+        "Como o time comercial monta hoje a lista de prospects?",
+        "Qual é o perfil de cliente que mais fecha negócio com vocês?",
+        "Quantos novos clientes vocês precisam por trimestre?"
+      ],
+      "complementares": ["dataplus", "audiencias_estrategicas"]
+    },
+    {
+      "id": "dataplus",
+      "nome": "DataPlus",
+      "linha": "prospeccao",
+      "o_que_resolve": "Enriquece e atualiza dados cadastrais de clientes e prospects.",
+      "sinais": ["base_desatualizada", "contato_devedor"],
+      "perfil_tipico": "Empresas com cadastro antigo, incompleto ou com muitos contatos que não respondem.",
+      "perguntas_descoberta": [
+        "Que parte dos telefones e e-mails do cadastro ainda funciona?",
+        "Quando a base de clientes foi atualizada pela última vez?",
+        "Quanto custa uma campanha que não chega ao cliente certo?"
+      ],
+      "complementares": ["prospeccao_qualificada", "scpc_comunica"]
+    },
+    {
+      "id": "audiencias_estrategicas",
+      "nome": "Audiências Estratégicas",
+      "linha": "prospeccao",
+      "o_que_resolve": "Monta públicos com potencial real de compra para campanhas de marketing.",
+      "sinais": ["campanhas_marketing", "pre_aprovacao"],
+      "perfil_tipico": "Varejo, financeiras e marcas que investem em mídia e campanhas.",
+      "perguntas_descoberta": [
+        "Quanto vocês investem por mês em mídia e campanhas?",
+        "Como o público das campanhas é escolhido hoje?",
+        "Qual é o custo por cliente conquistado nas campanhas atuais?"
+      ],
+      "complementares": ["prospeccao_qualificada", "interconnect_box_pre_qualificacao"]
+    }
+  ]
+}

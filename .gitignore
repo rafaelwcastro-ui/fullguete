@@ -1,9 +1,24 @@
 .venv/
 __pycache__/
 *.pyc
-.streamlit/secrets.toml
-.env
-data/*.db
+.pytest_cache/
+.ruff_cache/
 .DS_Store
 *.zip
+
+# Segredos: nunca vão para o Git
+.env
+.streamlit/secrets.toml
 .streamlit/credenciais_locais.txt
+
+# Bancos locais
+data/*.db
+data/*.db-journal
+
+# Modelos treinados (o registro fica no banco; os arquivos são recriados no primeiro uso)
+modelos/*.joblib
+
+# Material de terceiros usado só como referência
+Mtariais FGV/
+material_fgv/
+PROMPT_Fullguete_Claude_Code.md.pdf
