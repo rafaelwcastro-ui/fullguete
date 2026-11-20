@@ -1,120 +1,126 @@
-> **Fullguete v2 em construção (branch `fullguete-v2`).** O código da v1 descrito abaixo foi movido para
-> `legado/v1/`. Para rodar a v2: copie `.env.example` para `.env`, instale `requirements.txt` e rode
-> `.venv/bin/streamlit run app.py`. No modo simulado, a tela de login oferece perfis de demonstração
-> (senha `fullguete-demo`). Este README será reescrito por completo na fase 7.
+# Fullguete v2
 
-# Fullguete · Captura, ranking e área do BDR
+Protótipo acadêmico do MBA Executivo da FGV, disciplina Arquitetura de Dados e Aplicações de Data Science em
+Negócios. Demonstra, de ponta a ponta, um fluxo de geração de receita apoiado por IA:
 
-Portal em Streamlit que captura empresas via CNPJ.ws ou importa planilhas, limpa os dados e
-prioriza cada lead em relação ao **perfil do cliente ideal (ICP)**. O BDR seleciona empresas do
-ranking e acompanha a prospecção na própria carteira.
+**Captura do lead → Tratamento pela IA → Painel do BDR → Funil até o fechamento → Aprendizado devolvido ao modelo.**
 
-- **IA (Claude, OpenAI ou Gemini)** avalia setor, porte, localização e descrição e devolve nota de 0 a 100 + justificativa.
-- O **Gemini** é selecionado por padrão quando sua chave está disponível. A análise local usa similaridade TF-IDF e regras.
-- Acesso com **usuário e senha**.
-- Carteira por usuário, pipeline, registro de atividades e agenda de retornos em **SQLite**.
-- Histórico de rankings e exportação em **CSV/Excel**, com identidade visual Fullguete.
+## Objetivo de negócio
 
-## Fluxo no portal
+Aumentar a receita com as soluções B2B da Equifax Brasil e a produtividade do time de BDRs. O Fullguete recebe
+empresas interessadas, a IA qualifica cada uma, diz qual solução Equifax faz sentido e por quê, e entrega ao BDR
+uma fila priorizada com roteiro de abordagem. O BDR decide; o resultado do funil ensina o modelo.
 
-1. Em **Nova análise**, escolha **API de CNPJ**, **Planilha** ou **Base fictícia**.
-2. Revise a base retornada, preencha o perfil do cliente ideal e clique em **Gerar ranking**.
-3. No bloco **Enviar leads para minha carteira BDR**, selecione as empresas que deseja trabalhar.
-4. Na **Área do BDR**, abra a ficha de uma empresa, atualize a etapa, registre a atividade e programe o retorno.
+> O Fullguete não toma decisão de crédito: ele prioriza prospects comerciais. Projeto acadêmico, sem vínculo com a
+> Equifax. Não existe API da Equifax neste projeto: dados que dependeriam dela são simulados e rotulados como tal.
+> A única API real é a do CNPJ.ws.
 
-A carteira mantém as etapas e atividades de cada lead ao receber novas notas do ranking. O histórico de análise
-e o acompanhamento do BDR são armazenados em tabelas independentes.
+## O que tem dentro
 
-## Captura por CNPJ
+| Menu | O que faz |
+|---|---|
+| Dashboard | Funil cumulativo, alertas (SLA, LGPD, drift, plano B), quentes aguardando ação, soluções e origem |
+| Captura de leads | Formulário com busca real no CNPJ.ws, planilha, lista de CNPJs, webhook do site simulado, base fictícia |
+| Tratamento IA | ICP versionado, 7 agentes por lote, ficha com nota decomposta e caminho no grafo, revisão humana, exportação |
+| Fila do BDR | Metas do dia, fila por SLA e nota, oferta, roteiro com copiar, cadência, BANT, correção da IA, agendamento |
+| Carteira | Todos os leads em qualquer etapa; o gestor redistribui |
+| CRM & funil | Kanban, oportunidade, passagem ao executivo, linha do tempo de ponta a ponta, feedback para o modelo |
+| Assistente IA | Chat com o catálogo (RAG) e o lead em contexto; não executa ações |
+| Catálogo de ofertas | 29 soluções Equifax, uso pela IA, knowledge graph e regras editáveis |
+| Indicadores | Negócio (conversão, SLA, receita, K-Means) e técnica (modelos, retreino, PSI, latência, custo, plano B) |
+| Governança & LGPD | Base legal, opt-out, titular, retenção, auditoria, pesos e limites, checagem de viés |
 
-- **Buscar empresas por filtros** usa a API Comercial Premium do CNPJ.ws. A busca aceita CNAE principal, UF,
-  código IBGE do município e até 25 resultados por vez. Configure `CNPJ_WS_TOKEN` nos Secrets.
-  O portal pesquisa CNPJs ativos e busca os cadastros das empresas encontradas.
-  [Documentação da pesquisa](https://docs.cnpj.ws/referencia-de-api/api-comercial/pesquisa-de-empresas)
-- **Consultar CNPJs conhecidos** recebe uma lista de CNPJs. Com token, usa a consulta comercial. Sem token,
-  usa a consulta pública do CNPJ.ws, limitada a três requisições por minuto por IP.
-  [Documentação da consulta pública](https://docs.cnpj.ws/referencia-de-api/api-publica/consultando-cnpj)
+Documentação para a entrega: [Arquitetura](docs/ARQUITETURA.md) · [Estratégia de IA](docs/ESTRATEGIA_IA.md) ·
+[Governança](docs/GOVERNANCA.md) · [Roteiro da demonstração](docs/ROTEIRO_DEMO.md).
 
-Os dados de cadastro dependem da fonte. O ranking avalia os campos disponíveis. Telefone, e-mail e CNPJ aparecem
-na ficha do BDR e ficam fora do pedido enviado à API de IA.
+## Como rodar localmente
+
+Requer Python 3.11 ou mais novo.
+
+```bash
+python3.11 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+cp .env.example .env          # preencha a GEMINI_API_KEY se quiser usar a IA generativa (opcional)
+.venv/bin/streamlit run app.py
+```
+
+Sem chave, tudo funciona no modo local: nota por TF-IDF e regras, recomendação pelo grafo e roteiros por
+modelos de texto. Testes e estilo:
+
+```bash
+.venv/bin/pytest
+.venv/bin/ruff check . && .venv/bin/ruff format --check .
+```
+
+## Variáveis
+
+| Variável | Para que serve | Padrão |
+|---|---|---|
+| `GEMINI_API_KEY` | Chave do Google Gemini. Sem ela, modo local | vazia |
+| `GEMINI_MODEL` | Modelo do Gemini (leve por padrão) | `gemini-3.1-flash-lite` |
+| `CNPJ_WS_TOKEN` | Token comercial do CNPJ.ws. Sem ele, API pública (3 consultas por minuto) | vazio |
+| `FULLGUETE_DB_PATH` | Caminho do banco SQLite | `data/fullguete_v2.db` |
+| `FULLGUETE_MODO` | `simulado` (logins de demonstração e base fictícia) ou `real` | `simulado` |
+| `FULLGUETE_CENARIO_DEMO` | No modo simulado, monta um mês fictício de operação na primeira abertura (`sim` ou `nao`) | `sim` |
+
+As variáveis podem ficar no `.env` (local, fora do Git) ou nos Secrets do Streamlit Cloud. Nenhuma chave fica no
+código.
+
+## Logins de demonstração (só no modo simulado)
+
+A tela de login mostra um botão para cada perfil. Também dá para entrar com usuário e senha
+`fullguete-demo`:
+
+| Perfil | Usuário |
+|---|---|
+| Gestor | `gestor` |
+| BDR | `bdr.ana`, `bdr.bruno`, `bdr.carla` |
+| Executivo de contas | `executivo` |
+
+No modo real esses logins ficam desativados. Usuários reais vêm dos Secrets, só com o hash da senha:
+
+```toml
+[usuarios.maria]
+nome = "Maria"
+papel = "gestor"   # bdr, gestor ou executivo
+senha_hash = "pbkdf2_sha256$600000$..."
+```
+
+Para gerar o hash: `.venv/bin/python -m nucleo.auth`.
+
+## Publicar no Streamlit Community Cloud
+
+1. Envie o repositório para o GitHub (o `.gitignore` já exclui `.env`, `secrets.toml`, bancos e modelos).
+2. Em <https://share.streamlit.io>, crie o app apontando para `app.py`, com Python 3.11.
+3. Em Secrets, cole as variáveis da tabela acima (por exemplo `GEMINI_API_KEY` e `FULLGUETE_MODO = "simulado"`).
+4. Faça o deploy. Na primeira abertura a base de demonstração é montada.
+
+O disco do Streamlit Cloud é temporário: o SQLite e os modelos voltam ao estado inicial quando a instância
+reinicia. Para uso contínuo, aponte `FULLGUETE_DB_PATH` para um volume persistente.
 
 ## Estrutura
 
 ```
-app.py                     # interface Streamlit
-fullguete/
-  dados.py                 # leitura de CSV/Excel, padronização e remoção de duplicatas
-  captura.py               # busca de empresas e consulta de cadastros no CNPJ.ws
-  area_captura.py          # formulário e prévia da base capturada
-  score_ia.py              # pontuação com Claude, OpenAI ou Gemini (saída JSON estruturada, lotes paralelos)
-  score_local.py           # pontuação local sem IA
-  banco.py                 # conexão SQLite, tabelas e histórico de análises
-  carteira.py              # carteira por usuário, etapas e atividades
-  area_bdr.py              # fila de trabalho, pipeline e edição de fichas
-  models.py                # perfil do cliente ideal
-data/exemplo_leads.csv     # base fictícia para a demonstração
-assets/                    # logo e ícone
-.streamlit/config.toml     # tema com as cores da marca
+app.py                     navegação, tema, carga inicial e login
+paginas/                   uma página por item do menu
+nucleo/                    configuração, login, estados do lead, comercial, revisão, LGPD, componentes de tela
+dados/                     ingestão, limpeza, CNPJ.ws, variáveis, base fictícia e cenário de demonstração
+ia/                        agentes, orquestrador, provedor LLM, esquemas, grafo, RAG, nota local, propensão,
+                           K-Means, drift, observabilidade, assistente e resumo
+prompts/v1/                prompt de sistema e exemplo few shot versionados
+catalogo/                  catálogo das soluções Equifax e regras do knowledge graph
+banco/                     esquema, migrações, conexão, consultas, métricas e carga inicial
+modelos/                   modelos treinados e metricas.json (gerados)
+tests/                     testes pytest
+docs/                      arquitetura, estratégia, governança e roteiro da demonstração
+legado/v1/                 código da primeira versão, preservado
 ```
 
-## Rodar localmente
+## Limites do protótipo
 
-```bash
-uv venv --python 3.11 .venv
-uv pip install --python .venv/bin/python -r requirements.txt
-cp .streamlit/secrets.toml.example .streamlit/secrets.toml   # coloque sua chave (opcional)
-.venv/bin/streamlit run app.py
-```
-
-## Formato da planilha
-
-Só a coluna de **nome da empresa** é obrigatória. As demais são reconhecidas por nomes comuns:
-
-| Campo | Nomes aceitos |
-|---|---|
-| empresa | empresa, nome, razao_social, nome_fantasia |
-| setor | setor, segmento, ramo, cnae, atividade |
-| porte | porte, tamanho (MEI, ME, EPP, Média, Grande) — ou deduzido de `funcionarios` |
-| cidade / uf | cidade, municipio / uf, estado |
-| descricao | descricao, sobre, observacoes |
-| contato | email, telefone, site, cnpj |
-
-## Publicar no Streamlit Community Cloud
-
-1. Crie um repositório no GitHub e envie o projeto (o `.gitignore` já exclui `secrets.toml`, `.venv` e o banco):
-   ```bash
-   git init && git add . && git commit -m "Fullguete: ranking de leads"
-   git branch -M main
-   git remote add origin https://github.com/<seu-usuario>/fullguete.git
-   git push -u origin main
-   ```
-2. Em <https://share.streamlit.io>, clique em **Create app**, escolha o repositório, branch `main` e arquivo `app.py`.
-3. Em **Advanced settings → Python version**, escolha **3.11**.
-4. Em **Secrets**, cole:
-   ```toml
-   ANTHROPIC_API_KEY = "sk-ant-..."   # opcional
-   OPENAI_API_KEY = "sk-..."          # opcional
-   OPENAI_MODEL = "gpt-5-mini"        # opcional
-   GEMINI_API_KEY = "AIza..."         # opcional
-   GEMINI_MODEL = "gemini-3.1-flash-lite"  # opcional
-   CNPJ_WS_TOKEN = ""                   # token comercial para pesquisa por filtros
-
-   [usuarios.admin]
-   nome = "Rafael"
-   senha_hash = "pbkdf2_sha256$600000$..."
-   ```
-   O jeito mais fácil é copiar o conteúdo do seu `.streamlit/secrets.toml` local.
-5. Clique em **Deploy**.
-
-No Streamlit Community Cloud, o arquivo SQLite pode ser perdido quando a instância é substituída. Para usar a
-carteira no trabalho diário, execute o portal em um ambiente com volume persistente e aponte a variável
-`FULLGUETE_DB_PATH` para o arquivo SQLite nesse volume. O caminho padrão é `data/fullguete.db`.
-
-## Custos e segurança
-
-- Configure as chaves de IA e o token do CNPJ.ws nos *Secrets* do Streamlit.
-- O portal exige **usuário e senha**. As senhas ficam só como hash PBKDF2 nos Secrets; após 5 erros
-  o login bloqueia por 60 segundos.
-- Para criar ou trocar um usuário: `.venv/bin/python -m fullguete.auth <usuario> "Nome"`. A senha aleatória
-  gerada vai para `.streamlit/credenciais_locais.txt` (fora do git); depois copie o novo hash para os Secrets.
-- Cada análise com IA está limitada a 200 leads (`MAX_LEADS_IA` em `app.py`).
+- O histórico que treina a propensão é sintético. Com uso real, ele passa a aprender com os resultados do funil.
+- Sinais de mercado (vende a prazo, tem e-commerce, volume de pedidos) são simulados e rotulados como simulados.
+- Os valores de oportunidade e receita são fictícios.
+- O banco é SQLite local, sem concorrência pesada; serve ao protótipo, não a produção.
+- Nenhuma mensagem é enviada pelo sistema: roteiros são rascunhos para o BDR.
+- A busca de empresas por CNAE e região exige token comercial do CNPJ.ws; a região é só filtro, nunca critério de nota.
