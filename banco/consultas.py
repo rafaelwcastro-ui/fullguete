@@ -156,3 +156,46 @@ def auditoria(entidade_id: str | None = None, limite: int = 300) -> pd.DataFrame
         sql += " WHERE entidade='leads' AND entidade_id=?"
         params.append(str(entidade_id))
     return _df(sql + " ORDER BY id DESC LIMIT ?", [*params, limite])
+
+
+def carteira(responsavel_id: int | None = None) -> pd.DataFrame:
+    """Leads com a última atividade de cada um. Sem responsável = todos."""
+    sql = """SELECT l.id, l.razao_social, l.nome_fantasia, l.etapa, l.classificacao, l.nota_final, l.solucao_principal,
+                    l.uf, l.cidade, l.retorno_em, l.proxima_acao, l.sla_limite, l.primeiro_contato_em, l.opt_out,
+                    l.responsavel_id, l.base_ficticia, l.criado_em, u.nome responsavel,
+                    a.registrada_em ultima_atividade_em, a.tipo ultima_atividade_tipo, a.resultado ultima_atividade_resultado
+             FROM leads l
+             LEFT JOIN usuarios u ON u.id=l.responsavel_id
+             LEFT JOIN atividades a ON a.id = (SELECT MAX(id) FROM atividades WHERE lead_id=l.id)
+             WHERE l.responsavel_id IS NOT NULL"""
+    params: list = []
+    if responsavel_id:
+        sql += " AND l.responsavel_id=?"
+        params.append(responsavel_id)
+    return _df(sql + " ORDER BY l.nota_final DESC NULLS LAST", params)
+
+
+def metas_do_dia(usuario_id: int, inicio_dia: str, inicio_semana: str, agora: str, hoje: str) -> dict:
+    with conectar() as con:
+        contatos = con.execute(
+            "SELECT COUNT(*) FROM atividades WHERE usuario_id=? AND registrada_em>=? AND tipo IN "
+            "('Ligação','E-mail','WhatsApp','Reunião')", (usuario_id, inicio_dia),
+        ).fetchone()[0]  # fmt: skip
+        meta = con.execute("SELECT meta_contatos_dia FROM usuarios WHERE id=?", (usuario_id,)).fetchone()
+        ativos = "('Na fila do BDR','Em contato','Qualificado')"
+        retornos = con.execute(
+            f"SELECT COUNT(*) FROM leads WHERE responsavel_id=? AND etapa IN {ativos} AND substr(retorno_em,1,10)=?",
+            (usuario_id, hoje),
+        ).fetchone()[0]
+        atrasados = con.execute(
+            f"""SELECT COUNT(*) FROM leads WHERE responsavel_id=? AND opt_out=0 AND etapa IN {ativos} AND (
+                    (etapa='Na fila do BDR' AND primeiro_contato_em IS NULL AND sla_limite < ?)
+                    OR (retorno_em IS NOT NULL AND substr(retorno_em,1,10) < ?))""",
+            (usuario_id, agora, hoje),
+        ).fetchone()[0]
+        reunioes = con.execute(
+            "SELECT COUNT(*) FROM etapas_historico h JOIN leads l ON l.id=h.lead_id "
+            "WHERE l.responsavel_id=? AND h.para='Reunião marcada' AND h.registrado_em>=?", (usuario_id, inicio_semana),
+        ).fetchone()[0]  # fmt: skip
+    return {"contatos": contatos, "meta": (meta["meta_contatos_dia"] if meta else 20) or 20, "retornos": retornos,
+            "atrasados": atrasados, "reunioes_semana": reunioes}  # fmt: skip
