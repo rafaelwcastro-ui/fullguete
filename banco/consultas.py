@@ -199,3 +199,8 @@ def metas_do_dia(usuario_id: int, inicio_dia: str, inicio_semana: str, agora: st
         ).fetchone()[0]  # fmt: skip
     return {"contatos": contatos, "meta": (meta["meta_contatos_dia"] if meta else 20) or 20, "retornos": retornos,
             "atrasados": atrasados, "reunioes_semana": reunioes}  # fmt: skip
+
+
+def valores_oportunidades() -> dict[int, float | None]:
+    with conectar() as con:
+        return {r["lead_id"]: r["valor_mensal"] for r in con.execute("SELECT lead_id, valor_mensal FROM oportunidades")}

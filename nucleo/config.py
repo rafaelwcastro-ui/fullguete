@@ -38,6 +38,11 @@ def simulado() -> bool:
     return modo() == "simulado"
 
 
+def cenario_demo_automatico() -> bool:
+    """No modo simulado, monta um mês fictício de operação na primeira abertura (desligue com 'nao')."""
+    return ler("FULLGUETE_CENARIO_DEMO", "sim").lower() not in ("nao", "não", "0", "false")
+
+
 def chave_gemini() -> str:
     return ler("GEMINI_API_KEY")
 

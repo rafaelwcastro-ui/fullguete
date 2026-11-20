@@ -21,7 +21,12 @@ ui.aplicar_css()
 
 @st.cache_resource(show_spinner="Preparando a base de demonstração...")
 def _preparar_base(modo: str) -> dict:
-    return semente.garantir_base(modo == "simulado", config.usuarios_secrets())
+    resumo = semente.garantir_base(modo == "simulado", config.usuarios_secrets())
+    if modo == "simulado" and config.cenario_demo_automatico() and repositorio.contar("leads") == 0:
+        from dados import cenario_demo
+
+        resumo["cenario"] = cenario_demo.montar()
+    return resumo
 
 
 _preparar_base(config.modo())

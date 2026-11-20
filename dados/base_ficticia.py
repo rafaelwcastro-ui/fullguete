@@ -352,7 +352,9 @@ def _empresa(rng: random.Random, indice: int, segmento: str, regras: dict, nomes
         interesse = LINHA_PARA_INTERESSE.get(_linha_da_solucao(melhor["para"]), "Não sei")
 
     sorteio_lgpd = rng.random()
-    base_legal = "consentimento" if sorteio_lgpd < 0.82 else "legitimo_interesse" if sorteio_lgpd < 0.94 else "sem_base"
+    base_legal = (
+        "consentimento" if sorteio_lgpd < 0.82 else "legitimo_interesse" if sorteio_lgpd < 0.965 else "sem_base"
+    )
     contato_nome = f"{rng.choice(NOMES)} {rng.choice(SOBRENOMES)}"
     dominio = f"{_slug(raiz)}.exemplo"
     return {

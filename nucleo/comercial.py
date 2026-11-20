@@ -234,3 +234,107 @@ def registrar_rotulo(con: sqlite3.Connection, lead_id: int, ganho: bool, motivo:
     )  # fmt: skip
     repositorio.auditar(con, "sistema", "rotulo_treino", "leads", lead_id, {"ganho": ganho})
     return True
+
+
+def mover_no_funil(lead_id: int, usuario: dict, para: str, motivo: str | None = None, detalhe: str = "") -> str:
+    """Move o lead entre as etapas do funil. Ganho e Perdido passam por fechar() e alimentam o modelo."""
+    from banco.conexao import conectar
+
+    if para in (estados.GANHO, estados.PERDIDO):
+        fechar(lead_id, usuario, ganho=para == estados.GANHO, motivo=motivo, detalhe=detalhe)
+        return para
+    with conectar() as con:
+        estados.mudar(con, lead_id, para, usuario["login"], motivo=motivo, detalhe=detalhe or None)
+    return para
+
+
+def salvar_oportunidade(lead_id: int, usuario: dict, solucoes: list[str], valor_mensal: float | None,
+                        executivo_id: int | None, previsao: str | None) -> None:  # fmt: skip
+    import catalogo
+    from banco.conexao import conectar
+
+    fora = [s for s in solucoes if s not in catalogo.ids()]
+    if fora:
+        raise ValueError(f"Soluções fora do catálogo: {', '.join(fora)}.")
+    momento = tempo.iso()
+    with conectar() as con:
+        con.execute(
+            "INSERT INTO oportunidades (lead_id, solucoes, valor_mensal, executivo_id, previsao_fechamento, criada_em, "
+            "atualizada_em) VALUES (?,?,?,?,?,?,?) ON CONFLICT(lead_id) DO UPDATE SET solucoes=excluded.solucoes, "
+            "valor_mensal=excluded.valor_mensal, executivo_id=excluded.executivo_id, "
+            "previsao_fechamento=excluded.previsao_fechamento, atualizada_em=excluded.atualizada_em",
+            (lead_id, repositorio._json(solucoes), valor_mensal, executivo_id, previsao, momento, momento),
+        )
+        if executivo_id:
+            con.execute("UPDATE leads SET executivo_id=? WHERE id=?", (executivo_id, lead_id))
+        repositorio.auditar(con, usuario["login"], "oportunidade", "leads", lead_id,
+                            {"solucoes": solucoes, "valor_mensal": valor_mensal})  # fmt: skip
+
+
+def regerar_resumo(lead_id: int) -> str:
+    from banco.conexao import conectar
+    from ia import resumo
+
+    texto, motor = resumo.passagem(lead_id)
+    with conectar() as con:
+        con.execute("UPDATE oportunidades SET resumo_passagem=?, atualizada_em=? WHERE lead_id=?",
+                    (texto, tempo.iso(), lead_id))  # fmt: skip
+        repositorio.auditar(con, "agente_redator", "resumo_passagem", "leads", lead_id, {"motor": motor})
+    return texto
+
+
+def linha_do_tempo(lead_id: int) -> list[dict]:
+    """Fluxo de ponta a ponta: captura, tratamento, atividades, etapas, oportunidade e aprendizado."""
+    import json
+
+    import catalogo
+    from banco.conexao import conectar
+    from dados.ingestao import CANAIS, ORIGENS_ROTULO
+
+    eventos: list[dict] = []
+    with conectar() as con:
+        lead = _lead(con, lead_id)
+        for b in con.execute(
+            "SELECT recebido_em, origem FROM leads_brutos WHERE lead_id=? ORDER BY id LIMIT 1", (lead_id,)
+        ):
+            eventos.append({"quando": b["recebido_em"], "fase": "Captura",
+                            "texto": f"Entrou por {CANAIS.get(b['origem'], b['origem'])}, origem "
+                                     f"{ORIGENS_ROTULO.get(lead['origem'], lead['origem'])}."})  # fmt: skip
+        for t in con.execute(
+            "SELECT * FROM tratamentos WHERE lead_id=? AND concluido_em IS NOT NULL ORDER BY id", (lead_id,)
+        ):
+            if t["nota_final"] is None:
+                texto = f"Tratamento: {t['destino']} pelo agente de risco."
+            else:
+                texto = (f"Tratamento ({t['motor']}, {t['modelo']}, prompt {t['versao_prompt']}, propensão "
+                         f"{t['modelo_propensao']}): nota {t['nota_final']:.0f} ({t['classificacao']}), solução "
+                         f"{catalogo.nome(json.loads(t['resultado'])['solucao_principal']['id'])}, destino {t['destino']}.")  # fmt: skip
+            eventos.append({"quando": t["concluido_em"], "fase": "Tratamento IA", "texto": texto})
+        for h in con.execute("SELECT * FROM etapas_historico WHERE lead_id=? ORDER BY id", (lead_id,)):
+            if h["para"] in (estados.EM_TRATAMENTO, estados.TRATADO) or h["de"] is None:
+                continue
+            texto = f"{h['de']} → {h['para']} por {h['ator']}"
+            if h["motivo"]:
+                texto += f". Motivo: {h['motivo']}"
+            if h["detalhe"]:
+                texto += f". {h['detalhe']}"
+            eventos.append({"quando": h["registrado_em"], "fase": "Etapa", "texto": texto + "."})
+        for a in con.execute(
+            "SELECT a.*, u.nome usuario FROM atividades a LEFT JOIN usuarios u ON u.id=a.usuario_id WHERE lead_id=? "
+            "ORDER BY a.id", (lead_id,),
+        ):  # fmt: skip
+            texto = f"{a['tipo']} por {a['usuario'] or 'sistema'}: {a['resultado'] or ''}"
+            if a["anotacao"]:
+                texto += f". {a['anotacao']}"
+            eventos.append({"quando": a["registrada_em"], "fase": "Atividade do BDR", "texto": texto})
+        for c in con.execute("SELECT * FROM correcoes_ia WHERE lead_id=? ORDER BY id", (lead_id,)):
+            verbo = "concordou com" if c["concorda"] else "corrigiu"
+            eventos.append({"quando": c["registrada_em"], "fase": "Human in the loop",
+                            "texto": f"Pessoa {verbo} a IA ({c['campo']}): {c['valor_ia']} → {c['valor_correto']}. "
+                                     f"{c['motivo']}"})  # fmt: skip
+        for r in con.execute("SELECT * FROM rotulos_treino WHERE lead_id=? ORDER BY id", (lead_id,)):
+            eventos.append({"quando": r["registrado_em"], "fase": "Aprendizado",
+                            "texto": f"Resultado ({'ganho' if r['resultado'] else 'perdido'}) enviado para o "
+                                     "aprendizado do modelo."})  # fmt: skip
+    eventos.sort(key=lambda e: e["quando"] or "")
+    return eventos

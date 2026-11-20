@@ -275,6 +275,19 @@ with aba_base:
     if b.button("Carregar base fictícia", disabled=disponiveis == 0):
         _mostrar_resultado(ingestao.carregar_ficticias(int(qtd_base), ator))
 
+    from dados import cenario_demo
+
+    if not cenario_demo.montado():
+        st.divider()
+        st.caption(
+            "Cenário de demonstração: captura e trata 100 empresas fictícias, espalha as datas pelo último mês e "
+            "simula o trabalho dos BDRs (contatos, reuniões, ganhos e perdas)."
+        )
+        if st.button("Montar cenário de demonstração", disabled=disponiveis < cenario_demo.QUANTIDADE):
+            with st.spinner("Montando um mês fictício de operação..."):
+                r = cenario_demo.montar(ator)
+            st.success(f"Cenário pronto: {r['leads']} leads, {r['reunioes']} reuniões, {r['ganhos']} ganhos.")
+
 # ---------- entrada em tempo real ----------
 st.divider()
 ui.rotulo("Entrada em tempo real")
