@@ -72,6 +72,7 @@ def _llm_lote(lote: str, grupo: list[Contexto], icp: dict) -> None:
     tentativa_msg = ""
     resultados = None
     t_in = t_out = 0
+    latencia = 0
     for tentativa in (1, 2):
         try:
             resposta = provedor.chamar(
@@ -82,6 +83,7 @@ def _llm_lote(lote: str, grupo: list[Contexto], icp: dict) -> None:
             erro_txt = str(erro)
             break
         t_in += resposta.tokens_entrada
+        latencia += resposta.latencia_ms
         t_out += resposta.tokens_saida
         try:
             resultados = esquemas.validar_lote(resposta.texto, candidatas)
@@ -104,6 +106,7 @@ def _llm_lote(lote: str, grupo: list[Contexto], icp: dict) -> None:
             ctx.resultado = resultados[str(ctx.lead["id"])]
             ctx.motor = "gemini"
             ctx.custo = custo_lote / len(pendentes)
+            ctx.llm_ms = latencia // len(pendentes)
             con.execute(
                 "INSERT INTO cache_ia (chave, criado_em, resposta) VALUES (?,?,?) ON CONFLICT(chave) DO NOTHING",
                 (chave, tempo.iso(), ctx.resultado.model_dump_json()),
@@ -200,11 +203,13 @@ def tratar(lead_ids: list[int], ator: str, usar_llm: bool | None = None,
         ctx.registrar("qualificacao", "ok",
                       f"Aderência {r.nota_aderencia} ({detalhe_motor}), referência local {ctx.nota_local['nota']}, "
                       f"propensão {ctx.propensao:.0%}, {perfis[ctx.cluster]['nome'] if ctx.cluster in perfis else ''}.",
-                      ms_local)  # fmt: skip
+                      ms_local + ctx.llm_ms // 3)  # fmt: skip
         ctx.registrar("recomendador", "ok",
                       f"{len(ctx.candidatas)} candidatas do grafo; escolhida {catalogo.nome(r.solucao_principal.id)} "
-                      f"com confiança {r.solucao_principal.confianca:.2f}.", 0)  # fmt: skip
-        ctx.registrar("redator", "ok", "Perguntas, roteiro por canal e objeções gerados como rascunho.", 0)
+                      f"com confiança {r.solucao_principal.confianca:.2f}.", ctx.llm_ms // 3)  # fmt: skip
+        ctx.registrar(
+            "redator", "ok", "Perguntas, roteiro por canal e objeções gerados como rascunho.", ctx.llm_ms // 3
+        )
 
     # 7. Supervisor: combina, classifica, decide o destino e distribui.
     avisar("Supervisor: nota final, destino e distribuição", 0.95)

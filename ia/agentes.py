@@ -54,6 +54,7 @@ class Contexto:
     etapas: list[dict] = field(default_factory=list)
     alteracoes: dict = field(default_factory=dict)  # campos do lead a gravar
     custo: float = 0.0
+    llm_ms: int = 0  # parte do tempo da chamada ao LLM atribuída a este lead
     inicio: float = field(default_factory=time.perf_counter)
 
     def registrar(self, agente: str, status: str, detalhe: str, ms: int) -> None:

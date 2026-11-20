@@ -65,7 +65,13 @@ with aba_lote:
     a, b, c = st.columns(3)
     a.metric("Aguardando tratamento", len(capturados))
     b.metric("Podem ser reprocessados", len(reprocessaveis))
-    c.metric("Motor", f"Gemini ({provedor.modelo()})" if tem_llm else "Análise local")
+    c.metric(
+        "Motor",
+        "Gemini" if tem_llm else "Análise local",
+        provedor.modelo() if tem_llm else "sem chave",
+        delta_color="off",
+        delta_arrow="off",
+    )
     if not tem_llm:
         st.info("Sem chave de IA: o tratamento usa a análise local (TF-IDF, regras e grafo), com o mesmo formato.")
 
@@ -91,8 +97,8 @@ with aba_lote:
                                          progresso=lambda etapa, p: barra.progress(min(p, 1.0), text=etapa))  # fmt: skip
             barra.empty()
             st.session_state["ultimo_lote"] = resumo["lote"]
-            destinos = ", ".join(f"{n} em {d}" for d, n in resumo["destinos"].items())
-            st.success(f"{resumo['total']} lead(s) tratados em {resumo['tempo_s']} s: {destinos}.")
+            destinos = "; ".join(f"{d}: {n}" for d, n in resumo["destinos"].items())
+            st.success(f"{resumo['total']} lead(s) tratados em {resumo['tempo_s']} s. {destinos}.")
             if resumo.get("planos_b"):
                 st.warning(f"{resumo['planos_b']} lead(s) caíram no plano B local (falha ou JSON inválido do LLM).")
 

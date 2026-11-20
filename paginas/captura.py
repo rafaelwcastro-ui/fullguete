@@ -50,8 +50,9 @@ def _tratar(lead_ids: list[int]) -> None:
     barra = st.progress(0.0, text="Enviando para os agentes...")
     resumo = orquestrador.tratar(lead_ids, ator, progresso=lambda etapa, p: barra.progress(min(p, 1.0), text=etapa))
     barra.empty()
-    destinos = ", ".join(f"{n} em {d}" for d, n in resumo["destinos"].items())
-    st.success(f"Tratamento concluído: {destinos}. Veja os detalhes em Tratamento IA.")
+    destinos = "; ".join(f"{d}: {n}" for d, n in resumo["destinos"].items())
+    st.session_state["captura_msg"] = f"Tratamento concluído. {destinos}. Veja os detalhes em Tratamento IA."
+    st.rerun()
 
 
 def _apos_captura(lead_ids: list[int]) -> None:
@@ -65,6 +66,9 @@ st.toggle(
     help="Quando ligado, cada lead capturado segue direto para os agentes de IA.",
 )
 
+
+if msg := st.session_state.pop("captura_msg", None):
+    st.success(msg)
 
 aba_form, aba_planilha, aba_cnpj, aba_site, aba_base = st.tabs(
     ["Formulário manual", "Planilha", "CNPJs conhecidos", "Site / webhook (simulado)", "Base fictícia"]

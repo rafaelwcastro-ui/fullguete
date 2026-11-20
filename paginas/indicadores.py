@@ -24,6 +24,8 @@ ui.cabecalho(
     "Métricas operacionais ligadas às de negócio, e a saúde técnica dos modelos e das chamadas de IA.",
     secao="Inteligência",
 )
+if msg := st.session_state.pop("ind_msg", None):
+    st.success(msg)
 periodo = st.segmented_control("Período", ["7 dias", "30 dias", "tudo"], default="30 dias")
 desde = tempo.inicio_periodo(periodo or "tudo")
 negocio, tecnica = st.tabs(["Negócio", "Técnica (MLOps e observabilidade)"])
@@ -131,7 +133,7 @@ with tecnica:
             with st.spinner("Treinando regressão logística e árvore de decisão..."):
                 r = propensao.treinar(usuario["login"])
                 segmentos.treinar(usuario["login"])
-            st.success(f"Nova versão registrada: {r['versao']} ({r['linhas']} exemplos).")
+            st.session_state["ind_msg"] = f"Nova versão registrada: {r['versao']} ({r['linhas']} exemplos)."
             st.rerun()
     if ativo:
         versao_base = ativo["versao"].split("-")[0]
