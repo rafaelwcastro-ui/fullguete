@@ -109,10 +109,8 @@ with aba_opp:
     execs = repositorio.usuarios("executivo")
     ids_exec = [e["id"] for e in execs]
     with st.form(f"opp_{lead_id}"):
-        solucoes = st.multiselect(
-            "Soluções propostas (catálogo Equifax)", [s["id"] for s in catalogo.solucoes()], format_func=catalogo.nome,
-            default=opp.get("solucoes") or ([lead["solucao_principal"]] if lead["solucao_principal"] else []),
-        )  # fmt: skip
+        solucoes = st.multiselect("Soluções propostas (catálogo Equifax)", [s["id"] for s in catalogo.solucoes()], format_func=catalogo.nome,
+            default=opp.get("solucoes") or ([lead["solucao_principal"]] if lead["solucao_principal"] else []), placeholder="Selecione")  # fmt: skip
         a, b, c = st.columns(3)
         valor = a.number_input("Valor estimado mensal (R$, fictício)", min_value=0.0, step=500.0,
                                value=float(opp.get("valor_mensal") or 0))  # fmt: skip

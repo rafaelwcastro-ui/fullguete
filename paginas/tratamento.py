@@ -34,7 +34,7 @@ with aba_icp:
         descricao = st.text_area("Descrição livre do cliente ideal", value=icp["descricao"] if icp else "", height=110)
         a, b = st.columns(2)
         setores = a.text_input("Setores alvo (separe por vírgula)", value=", ".join(icp["setores"]) if icp else "")
-        portes = b.multiselect("Portes alvo", PORTES, default=icp["portes"] if icp else [])
+        portes = b.multiselect("Portes alvo", PORTES, default=icp["portes"] if icp else [], placeholder="Selecione")
         palavras = st.text_input("Palavras chave (separe por vírgula)",
                                  value=", ".join(icp["palavras_chave"]) if icp else "")  # fmt: skip
         st.caption("Localização não faz parte do ICP: região não entra na nota.")
@@ -76,7 +76,9 @@ with aba_lote:
         escolhidos = []
         if opcoes is not None and not opcoes.empty:
             rotulos = {int(r.id): f"#{r.id} {r.razao_social} · {r.etapa}" for r in opcoes.itertuples()}
-            escolhidos = st.multiselect("Leads (para escolher ou reprocessar)", list(rotulos), format_func=rotulos.get)
+            escolhidos = st.multiselect(
+                "Leads (para escolher ou reprocessar)", list(rotulos), format_func=rotulos.get, placeholder="Selecione"
+            )
         usar_llm = st.toggle("Usar IA generativa (Gemini)", value=tem_llm, disabled=not tem_llm)
         executar = st.form_submit_button("Executar agentes", type="primary", icon=":material/play_arrow:")
     if executar:
@@ -115,9 +117,11 @@ with aba_lista:
         tratados["solucao"] = tratados["solucao_principal"].map(lambda s: nomes.get(s, {}).get("nome", ""))
         tratados["empresa"] = tratados["nome_fantasia"].fillna(tratados["razao_social"])
         a, b, c = st.columns(3)
-        filtro_destino = a.multiselect("Etapa atual", sorted(tratados["etapa"].unique()))
-        filtro_classe = b.multiselect("Classificação", nota.CLASSES)
-        filtro_uf = c.multiselect("UF (filtro de região)", sorted(tratados["uf"].dropna().unique()))
+        filtro_destino = a.multiselect("Etapa atual", sorted(tratados["etapa"].unique()), placeholder="Todas")
+        filtro_classe = b.multiselect("Classificação", nota.CLASSES, placeholder="Todas")
+        filtro_uf = c.multiselect(
+            "UF (filtro de região)", sorted(tratados["uf"].dropna().unique()), placeholder="Todas"
+        )
         vis = tratados
         if filtro_destino:
             vis = vis[vis["etapa"].isin(filtro_destino)]

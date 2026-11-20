@@ -52,9 +52,9 @@ def decomposicao(trat: dict) -> None:
     c1, c2, c3 = st.columns(3)
     c1.metric("Aderência ao ICP", f"{d.get('aderencia', 0):.0f}", f"peso {pesos.get('aderencia', 0):.0%}",
               delta_color="off", delta_arrow="off")  # fmt: skip
-    c2.metric("Propensão de conversão", f"{d.get('propensao', 0):.0f}%", f"peso {pesos.get('propensao', 0):.0%}",
+    c2.metric("Propensão", f"{d.get('propensao', 0):.0f}%", f"peso {pesos.get('propensao', 0):.0%}",
               delta_color="off", delta_arrow="off")  # fmt: skip
-    c3.metric("Confiança da recomendação", f"{d.get('confianca', 0):.2f}", f"peso {pesos.get('confianca', 0):.0%}",
+    c3.metric("Confiança", f"{d.get('confianca', 0):.2f}", f"peso {pesos.get('confianca', 0):.0%}",
               delta_color="off", delta_arrow="off")  # fmt: skip
     local = d.get("aderencia_local") or {}
     if local.get("componentes"):

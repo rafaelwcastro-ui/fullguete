@@ -34,7 +34,9 @@ else:
     por_id = {b["id"]: b for b in bdrs}
     escolhido = st.selectbox("Ver a fila de", list(por_id), format_func=lambda i: por_id[i]["nome"])
     dono = por_id[escolhido]
-    st.caption(f"Você está vendo a fila como {auth.PAPEIS[usuario['papel']].lower()}. As ações ficam em nome de você.")
+    st.caption(
+        f"Você está vendo a fila como {auth.PAPEIS[usuario['papel']].lower()}. As ações ficam registradas no seu nome."
+    )
 
 # ---------- metas do dia ----------
 hoje = tempo.hoje_local()
@@ -88,7 +90,7 @@ fila["prazo"] = [_sla(r) for r in fila.itertuples()]
 f1, f2, f3 = st.columns([2, 1.3, 1])
 filtro = f1.segmented_control("Filtro", ["Todos", "Quentes", "Retorno hoje", "Atrasados"], default="Todos")
 solucao = f2.selectbox("Solução", ["Todas", *sorted(fila["solucao"].dropna().unique())])
-ufs = f3.multiselect("UF (filtro)", sorted(fila["uf"].dropna().unique()))
+ufs = f3.multiselect("UF (filtro)", sorted(fila["uf"].dropna().unique()), placeholder="Todas")
 vis = fila
 if filtro == "Quentes":
     vis = vis[vis["classificacao"] == "Quente"]
@@ -266,7 +268,7 @@ with ficha:
             sugeridas = [lead["solucao_principal"]] + [r["solucao_id"] for r in trat.get("recomendacoes", [])
                                                        if r["tipo"] == "complementar"]  # fmt: skip
             solucoes = st.multiselect("Soluções para a proposta", [s["id"] for s in catalogo.solucoes()],
-                                      default=[s for s in sugeridas if s], format_func=catalogo.nome)  # fmt: skip
+                                      default=[s for s in sugeridas if s], format_func=catalogo.nome, placeholder="Selecione")  # fmt: skip
             obs = st.text_input("Observação para o executivo", max_chars=300)
             qualificar = st.form_submit_button("Qualificar e agendar", type="primary", icon=":material/event:")
         if qualificar:

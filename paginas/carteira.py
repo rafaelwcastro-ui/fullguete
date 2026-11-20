@@ -48,12 +48,14 @@ dados["prazo"] = dados["retorno_em"].map(_prazo)
 
 a, b, c = st.columns([1.6, 1.4, 1])
 busca = a.text_input("Buscar empresa", placeholder="Nome ou razão social", max_chars=80)
-etapas = b.multiselect("Etapa", [e for e in estados.ESTADOS if e in set(dados["etapa"])])
+etapas = b.multiselect("Etapa", [e for e in estados.ESTADOS if e in set(dados["etapa"])], placeholder="Todas")
 prazo = c.selectbox("Prazo de retorno", ["Todos", "Atrasado", "Hoje", "Próximos", "Sem data"])
 a, b, c = st.columns([1.6, 1.4, 1])
 solucao = a.selectbox("Solução", ["Todas", *sorted(s for s in dados["solucao"].unique() if s)])
-responsaveis = b.multiselect("Responsável", sorted(dados["responsavel"].dropna().unique())) if gestor else []
-ufs = c.multiselect("UF (filtro)", sorted(dados["uf"].dropna().unique()))
+responsaveis = (
+    b.multiselect("Responsável", sorted(dados["responsavel"].dropna().unique()), placeholder="Todas") if gestor else []
+)
+ufs = c.multiselect("UF (filtro)", sorted(dados["uf"].dropna().unique()), placeholder="Todas")
 
 vis = dados
 if busca:
@@ -95,7 +97,7 @@ if gestor:
     ativos = vis[vis["etapa"].isin([*comercial.ETAPAS_ATIVAS_BDR, estados.REUNIAO, estados.PROPOSTA, estados.NUTRICAO])]
     with st.form("redistribuir"):
         opcoes = {int(r.id): f"#{r.id} {r.empresa} · {r.responsavel}" for r in ativos.itertuples()}
-        escolhidos = st.multiselect("Leads", list(opcoes), format_func=opcoes.get)
+        escolhidos = st.multiselect("Leads", list(opcoes), format_func=opcoes.get, placeholder="Selecione")
         a, b = st.columns(2)
         destino = a.selectbox(
             "Novo responsável", [x["id"] for x in bdrs], format_func={x["id"]: x["nome"] for x in bdrs}.get

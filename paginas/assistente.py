@@ -1,15 +1,61 @@
-"""Assistente IA."""
+"""Assistente IA: chat com o catálogo (RAG) e o lead selecionado como contexto. Não executa ações."""
 
 from __future__ import annotations
 
-from nucleo import ui
+import streamlit as st
 
-ui.cabecalho("Assistente IA", "Chat com contexto do catálogo e do lead selecionado.", secao="Inteligência")
-ui.em_construcao(
-    6,
-    [
-        "Perguntas prontas, como preparar uma reunião",
-        "Respostas apoiadas no catálogo (RAG)",
-        "Modo sem chave com modelos de texto locais",
-    ],
+from banco import consultas
+from ia import assistente, provedor
+from nucleo import estados, ui
+
+usuario = st.session_state["usuario"]
+
+ui.cabecalho(
+    "Assistente IA",
+    "Pergunte sobre o catálogo ou peça ajuda com um lead. O assistente responde, mas não executa nenhuma ação.",
+    secao="Inteligência",
 )
+if not provedor.disponivel():
+    st.info("Sem chave de IA: as respostas usam modelos de texto locais e a busca no catálogo.")
+
+ativos = consultas.leads([estados.FILA_BDR, estados.EM_CONTATO, estados.QUALIFICADO, estados.REUNIAO, estados.PROPOSTA])
+if usuario["papel"] == "bdr":
+    ativos = ativos[ativos["responsavel_id"] == usuario["id"]]
+opcoes = {0: "Nenhum lead"} | {int(r.id): f"#{r.id} {r.nome_fantasia or r.razao_social} · {r.etapa}"
+                               for r in ativos.itertuples()}  # fmt: skip
+lead_id = st.selectbox("Lead em contexto", list(opcoes), format_func=opcoes.get)
+empresa = opcoes[lead_id].split(" · ")[0].split(" ", 1)[1] if lead_id else "[empresa]"
+
+historico = st.session_state.setdefault("assistente_historico", [])
+
+ui.rotulo("Exemplos")
+cols = st.columns(len(assistente.EXEMPLOS))
+pergunta_pronta = None
+for col, exemplo in zip(cols, assistente.EXEMPLOS, strict=True):
+    texto = exemplo.format(empresa=empresa)
+    if col.button(texto, width="stretch"):
+        pergunta_pronta = texto
+
+for msg in historico:
+    with st.chat_message("user" if msg["papel"] == "usuario" else "assistant"):
+        st.markdown(msg["texto"])
+        if msg.get("rodape"):
+            st.caption(msg["rodape"])
+
+pergunta = st.chat_input("Escreva sua pergunta") or pergunta_pronta
+if pergunta:
+    historico.append({"papel": "usuario", "texto": pergunta})
+    with st.chat_message("user"):
+        st.markdown(pergunta)
+    with st.chat_message("assistant"), st.spinner("Pensando..."):
+        r = assistente.responder(pergunta, lead_id or None, historico[:-1])
+        if r.get("aviso"):
+            st.caption(r["aviso"])
+        st.markdown(r["texto"])
+        rodape = f"Motor: {r['motor']}. Fontes do catálogo: {', '.join(r['fontes']) or 'nenhuma'}."
+        st.caption(rodape)
+    historico.append({"papel": "assistente", "texto": r["texto"], "rodape": rodape})
+
+if historico and st.button("Limpar conversa"):
+    st.session_state["assistente_historico"] = []
+    st.rerun()

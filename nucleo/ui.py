@@ -61,3 +61,13 @@ def em_construcao(fase: int, itens: list[str]) -> None:
 
 def rodape() -> None:
     st.html(f'<div class="fg-rodape">{html.escape(RODAPE)}</div>')
+
+
+def reais(valor: float | None) -> str:
+    """R$ curto para cartões: R$ 950, R$ 40,1 mil, R$ 1,2 mi."""
+    v = float(valor or 0)
+    if v >= 1_000_000:
+        return f"R$ {v / 1_000_000:.1f} mi".replace(".", ",")
+    if v >= 1_000:
+        return f"R$ {v / 1_000:.1f} mil".replace(".", ",")
+    return f"R$ {v:.0f}"

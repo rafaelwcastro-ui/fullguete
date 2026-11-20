@@ -58,11 +58,11 @@ def aderencia(leads: list[dict], icp: dict) -> list[dict]:
     corpus = [texto_icp, *textos, *(normalizar(rag.documento(s)) for s in catalogo.solucoes())]
     vetorizador = TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5), sublinear_tf=True).fit(corpus)
     sims = cosine_similarity(vetorizador.transform([texto_icp]), vetorizador.transform(textos)).ravel()
-    palavras = [normalizar(p) for p in icp.get("palavras_chave", []) if p.strip()]
+    palavras = {normalizar(p): p for p in icp.get("palavras_chave", []) if p.strip()}
 
     saida = []
     for lead, texto, sim in zip(leads, textos, sims, strict=True):
-        achadas = [p for p in palavras if f" {p} " in f" {texto} "]
+        achadas = [original for p, original in palavras.items() if f" {p} " in f" {texto} "]
         parte_texto = 0.5 * min(float(sim) / SIMILARIDADE_TETO, 1.0) + 0.5 * min(len(achadas) / 3, 1.0)
         segmento_nome = nome_seg.get(lead.get("segmento", ""), "")
         parte_setor, razao_setor = _setor(lead, segmento_nome, icp.get("setores", []))
