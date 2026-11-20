@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 def ambiente_isolado(tmp_path, monkeypatch):
     monkeypatch.setenv("FULLGUETE_DB_PATH", str(tmp_path / "teste.db"))
     monkeypatch.setenv("FULLGUETE_MODO", "simulado")
+    monkeypatch.setenv("FULLGUETE_MODELOS_DIR", str(tmp_path / "modelos"))
     monkeypatch.setenv("GEMINI_API_KEY", "")
     monkeypatch.setenv("CNPJ_WS_TOKEN", "")
     yield tmp_path

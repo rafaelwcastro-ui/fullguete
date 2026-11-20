@@ -44,8 +44,26 @@ def _mostrar_resultado(resultado: ingestao.ResultadoIngestao) -> None:
         _apos_captura(resultado.criados)
 
 
+def _tratar(lead_ids: list[int]) -> None:
+    from ia import orquestrador
+
+    barra = st.progress(0.0, text="Enviando para os agentes...")
+    resumo = orquestrador.tratar(lead_ids, ator, progresso=lambda etapa, p: barra.progress(min(p, 1.0), text=etapa))
+    barra.empty()
+    destinos = ", ".join(f"{n} em {d}" for d, n in resumo["destinos"].items())
+    st.success(f"Tratamento concluído: {destinos}. Veja os detalhes em Tratamento IA.")
+
+
 def _apos_captura(lead_ids: list[int]) -> None:
-    """Ponto de extensão: o tratamento automático é ligado na fase 3."""
+    if st.session_state.get("auto_tratar"):
+        _tratar(lead_ids)
+
+
+st.toggle(
+    "Tratar automaticamente ao capturar",
+    key="auto_tratar",
+    help="Quando ligado, cada lead capturado segue direto para os agentes de IA.",
+)
 
 
 aba_form, aba_planilha, aba_cnpj, aba_site, aba_base = st.tabs(
@@ -277,6 +295,16 @@ if recentes:
     )  # fmt: skip
 else:
     st.info("Nenhum lead recebido ainda.")
+
+from banco import consultas  # noqa: E402
+from nucleo import estados  # noqa: E402
+
+pendentes = consultas.leads([estados.CAPTURADO])
+if not pendentes.empty:
+    a, b = st.columns([3, 1], vertical_alignment="center")
+    a.markdown(f"**{len(pendentes)}** lead(s) capturados aguardando tratamento.")
+    if b.button("Enviar para tratamento", type="primary", icon=":material/psychology:", width="stretch"):
+        _tratar(pendentes["id"].tolist())
 
 with st.expander("Regras de entrada"):
     for regra in ingestao.REGRAS_ENTRADA:

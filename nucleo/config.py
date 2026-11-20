@@ -55,6 +55,20 @@ def caminho_banco() -> Path:
     return caminho if caminho.is_absolute() else RAIZ / caminho
 
 
+def pasta_modelos() -> Path:
+    caminho = Path(ler("FULLGUETE_MODELOS_DIR", "modelos"))
+    caminho = caminho if caminho.is_absolute() else RAIZ / caminho
+    caminho.mkdir(parents=True, exist_ok=True)
+    return caminho
+
+
+def sufixo_banco() -> str:
+    """Identificador curto do banco em uso, para arquivos de modelo de bancos diferentes não colidirem."""
+    import hashlib
+
+    return hashlib.sha1(str(caminho_banco().resolve()).encode()).hexdigest()[:6]
+
+
 def usuarios_secrets() -> dict[str, dict]:
     """Usuários definidos em [usuarios.<login>] nos Secrets (modo real)."""
     try:

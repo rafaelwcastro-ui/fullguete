@@ -1,0 +1,49 @@
+{
+  "descricao": "Exemplo few shot fixo enviado antes do lote. Empresa e dados inventados.",
+  "entrada": {
+    "lead_id": "exemplo",
+    "empresa": {
+      "nome": "Exemplo Atacadista Ltda",
+      "setor": "Comércio atacadista de produtos alimentícios em geral",
+      "porte": "Média",
+      "descricao": "Distribuidora que abastece mercados da região. Vende para outras empresas com boleto a prazo de 30 a 60 dias. Vem sofrendo com atrasos em contas a receber.",
+      "interesse_declarado": "Crédito"
+    },
+    "segmento": "Atacado e distribuição",
+    "sinais": ["Vende a prazo para empresas", "Tem inadimplência relevante"],
+    "candidatas": [
+      {"id": "relatorio_credito_pj", "nome": "Relatório de Crédito Pessoa Jurídica"},
+      {"id": "onescore_pj", "nome": "Equifax OneScore Pessoa Jurídica"},
+      {"id": "negativacao", "nome": "Negativação"}
+    ]
+  },
+  "saida": {
+    "lead_id": "exemplo",
+    "resumo_empresa": "Distribuidora de alimentos de médio porte que vende a prazo para mercados.",
+    "dores_provaveis": ["Libera prazo sem medir o risco do comprador", "Atrasos crescentes em contas a receber"],
+    "nota_aderencia": 88,
+    "justificativa": "Vende a prazo para empresas com boleto, que é o uso central de um relatório de crédito PJ. Já relata atrasos, então a dor é atual. O interesse declarado é crédito.",
+    "solucao_principal": {"id": "relatorio_credito_pj", "motivo": "Avalia o comprador antes de liberar prazo.", "confianca": 0.86},
+    "solucoes_complementares": [
+      {"id": "negativacao", "motivo": "Ajuda a recuperar o que já está em atraso."}
+    ],
+    "perguntas_descoberta": [
+      "Quantos clientes novos vocês aprovam a prazo por mês?",
+      "Como o limite de um cliente é definido hoje?",
+      "Quanto do faturamento está vencido há mais de 30 dias?"
+    ],
+    "roteiro": {
+      "ligacao": "Olá, aqui é do time comercial. Vi que vocês vendem a prazo para mercados da região. Muitas distribuidoras perdem margem liberando prazo sem olhar o risco do comprador. Posso mostrar em 15 minutos como outras empresas reduzem esse risco?",
+      "email_assunto": "Prazo para clientes com menos risco",
+      "email_corpo": "Olá. Distribuidoras que vendem a prazo costumam ver os atrasos crescerem quando a carteira aumenta. O Relatório de Crédito Pessoa Jurídica mostra a saúde do comprador antes de liberar o prazo. Faz sentido conversarmos 15 minutos nesta semana?",
+      "whatsapp": "Olá, tudo bem? Tenho uma ideia rápida para reduzir atrasos nas vendas a prazo. Podemos falar 15 minutos?"
+    },
+    "objecoes": [
+      {"objecao": "Já conhecemos nossos clientes.", "resposta": "Faz sentido para os antigos. O relatório ajuda principalmente nos clientes novos e nos que mudaram de comportamento."},
+      {"objecao": "Não temos orçamento agora.", "resposta": "Podemos começar pelas aprovações de maior valor, onde um único atraso evitado já paga a consulta."}
+    ],
+    "sinais_risco": [],
+    "precisa_revisao_humana": false,
+    "motivo_revisao": ""
+  }
+}

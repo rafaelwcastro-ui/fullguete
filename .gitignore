@@ -17,6 +17,7 @@ data/*.db-journal
 
 # Modelos treinados (o registro fica no banco; os arquivos são recriados no primeiro uso)
 modelos/*.joblib
+modelos/metricas.json
 
 # Material de terceiros usado só como referência
 Mtariais FGV/

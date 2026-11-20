@@ -449,15 +449,15 @@ def gerar_historico(n: int = 500, semente: int = SEMENTE + 1) -> list[dict]:
     for emp in empresas:
         f = features.calcular(emp, regras)
         logit = (
-            -3.4
-            + 0.45 * f["n_sinais"]
-            + 0.9 * f["interesse_alinhado"]
+            -3.8
+            + 0.6 * f["n_sinais"]
+            + 1.2 * f["interesse_alinhado"]
             + 0.6 * f["forca_segmento"]
             + _EFEITO_SEGMENTO.get(f["segmento"], 0.0)
             + _EFEITO_ORIGEM.get(f["origem"], 0.0)
             + _EFEITO_PORTE[f["porte_ordem"]]
             - 1.2 * (1 - f["empresa_ativa"])
-            + rng.gauss(0, 0.9)
+            + rng.gauss(0, 0.6)
         )
         ganho = rng.random() < 1 / (1 + math.exp(-logit))
         candidatas = [a for a in regras["sinal_solucao"] if a["de"] in f["sinais"]]
