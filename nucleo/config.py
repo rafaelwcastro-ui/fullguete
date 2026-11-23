@@ -65,6 +65,11 @@ def token_cnpjws() -> str:
     return ler("CNPJ_WS_TOKEN")
 
 
+def token_localizacnpj() -> str:
+    """Chave da busca avançada. Nunca exposta em código ou commit."""
+    return ler("LOCALIZA_CNPJ_TOKEN")
+
+
 def caminho_banco() -> Path:
     caminho = Path(ler("FULLGUETE_DB_PATH", "data/fullguete_v2.db"))
     return caminho if caminho.is_absolute() else RAIZ / caminho

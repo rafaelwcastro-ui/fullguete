@@ -22,6 +22,7 @@ CANAIS = {
     "formulario": "Formulário manual",
     "planilha": "Planilha",
     "cnpj_lista": "Lista de CNPJs",
+    "busca_cnpj": "Pesquisa de CNPJs reais",
     "webhook_site": "Site / webhook (simulado)",
     "base_ficticia": "Base fictícia",
 }
