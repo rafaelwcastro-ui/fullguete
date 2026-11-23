@@ -78,7 +78,7 @@ _MAPA_PORTE = {"mei": "MEI", "microempreendedor": "MEI", "me": "ME", "micro": "M
                "grande": "Grande"}  # fmt: skip
 _ORIGENS = {"site": "site", "formulario": "formulario", "evento": "evento", "indicacao": "indicacao",
             "linkedin": "linkedin", "planilha": "planilha", "cnpj": "cnpj_lista",
-            "busca_cnpj": "busca_cnpj"}  # fmt: skip
+            "busca_cnpj": "busca_cnpj", "cnpja": "cnpja"}  # fmt: skip
 _SIM = {"sim", "s", "true", "1", "x", "yes", "y", "aceito", "consentiu"}
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[a-z]{2,}$")
 

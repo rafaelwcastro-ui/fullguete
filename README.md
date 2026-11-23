@@ -148,3 +148,32 @@ legado/v1/                 código da primeira versão, preservado
 - O banco é SQLite local, sem concorrência pesada; serve ao protótipo, não a produção.
 - Nenhuma mensagem é enviada pelo sistema: roteiros são rascunhos para o BDR.
 - A busca de empresas por CNAE e região exige token comercial do CNPJ.ws; a região é só filtro, nunca critério de nota.
+
+## Nova captura real com CNPJá Comercial
+
+O Fullguete oferece a aba **Captura de leads → Buscar empresas (CNPJá)**, separada da
+LocalizaCNPJ (legado). Configure `CNPJA_API_KEY` nos Secrets do Streamlit ou
+digite temporariamente a chave da **API Comercial** na própria aba; não use a
+chave em código ou commits.
+
+**Fluxo de validação:** 1) clique em **Validar chave e consultar saldo (grátis)**
+(`GET /credit`), 2) pesquise com `limit=10`, 3) confira resultados e importe
+apenas os CNPJs selecionados. O primeiro teste pode ser Varejo, Campinas/SP,
+Abril de 2026, CNAE 4711302 (supermercados). A busca usa o código IBGE
+do município obtido pela API pública do IBGE; você também pode preencher o
+código manualmente caso a consulta ao IBGE esteja indisponível.
+
+A pesquisa usa `GET https://api.cnpja.com/office`, com filtros documentados
+`address.state.in`, `address.municipality.in`, `founded.gte`,
+`founded.lte`, `mainActivity.id.in` e `status.id.in=2`. O fornecedor cobra
+1 crédito por até 10 registros retornados. A tag **Varejo** usa apenas uma
+lista ilustrativa de CNAEs: para uma cobertura completa, configure uma
+lista mais abrangente de CNAEs conforme a estratégia comercial.
+
+A pesquisa retorna dados de empresas, sem importar sócios ou dados pessoais de
+contato; por padrão os registros entram com base legal não validada
+(`sem_base`). São deduplicados por CNPJ no pipeline existente. **Os testes
+do CI usam respostas simuladas, não comprovam a busca autenticada.** É
+necessário validar pelo botão da aba com uma conta comercial habilitada.
+
+Documentação: https://cnpja.com/api

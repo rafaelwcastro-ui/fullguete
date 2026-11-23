@@ -70,6 +70,11 @@ def token_localizacnpj() -> str:
     return ler("LOCALIZA_CNPJ_TOKEN")
 
 
+def token_cnpja() -> str:
+    """Chave da CNPJá Comercial, apenas no backend/Secrets."""
+    return ler("CNPJA_API_KEY")
+
+
 def caminho_banco() -> Path:
     caminho = Path(ler("FULLGUETE_DB_PATH", "data/fullguete_v2.db"))
     return caminho if caminho.is_absolute() else RAIZ / caminho
