@@ -71,6 +71,7 @@ def test_importar_vincula_novos_e_duplicados_na_mesma_empresa():
     assert len(r1.criados) == 1
     lead_id = r1.criados[0]
     assert consultas.lead(lead_id)["etapa"] == estados.CAPTURADO
+    assert consultas.lead(lead_id)["data_abertura"] == "12/04/2026"
     b = busca()
     r2 = prospeccao.importar(b.id, ["11222333000181"], "gestor")
     assert not r2.criados
