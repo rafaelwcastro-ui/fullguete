@@ -7,7 +7,7 @@ from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
 from banco import repositorio
-from dados import cenario_demo
+from dados import cenario_demo, ingestao
 
 RAIZ = Path(__file__).resolve().parent.parent
 
@@ -24,6 +24,19 @@ def _sessao_gestor(app: AppTest) -> None:
 
 def test_carteira_renderiza_com_solucao_nula_e_permite_filtrar(base_carregada):
     cenario_demo.montar()
+    ingestao.receber(
+        [
+            {
+                "cnpj": "11222333000181",
+                "razao_social": "Loja real sem recomendação",
+                "cidade": "Campinas",
+                "uf": "SP",
+                "base_legal": "sem_base",
+            }
+        ],
+        "cnpja",
+        "teste",
+    )
     app = AppTest.from_file(str(RAIZ / "paginas" / "carteira.py"), default_timeout=30)
     _sessao_gestor(app)
     app.run()
