@@ -47,8 +47,8 @@ def _chave_cache(ctx: Contexto, payload: dict, icp_id: int) -> str:
     return hashlib.sha256(base.encode()).hexdigest()
 
 
-def _llm_lote(lote: str, grupo: list[Contexto], icp: dict) -> None:
-    """Chama o LLM para um grupo de leads. Preenche ctx.resultado; em falha, deixa None para o plano B."""
+def _llm_lote(lote: str, grupo: list[Contexto], icp: dict) -> str | None:
+    """Preenche ctx.resultado; retorna falha do provedor para evitar tentativas em cascata."""
     payloads = {str(c.lead["id"]): agentes.payload_llm(c, rag.contexto_candidatas(c.candidatas)) for c in grupo}
     pendentes = []
     with conectar() as con:
@@ -64,13 +64,14 @@ def _llm_lote(lote: str, grupo: list[Contexto], icp: dict) -> None:
             else:
                 pendentes.append((ctx, chave))
     if not pendentes:
-        return
+        return None
 
     candidatas = {str(c.lead["id"]): {x["solucao_id"] for x in c.candidatas} for c, _ in pendentes}
     usuario = prompts.montar_usuario(icp, [payloads[str(c.lead["id"])] for c, _ in pendentes])
     sistema = prompts.sistema()
     tentativa_msg = ""
     resultados = None
+    falha_provedor = None
     t_in = t_out = 0
     latencia = 0
     for tentativa in (1, 2):
@@ -81,6 +82,7 @@ def _llm_lote(lote: str, grupo: list[Contexto], icp: dict) -> None:
             )  # fmt: skip
         except provedor.ErroIA as erro:
             erro_txt = str(erro)
+            falha_provedor = erro_txt
             break
         t_in += resposta.tokens_entrada
         latencia += resposta.latencia_ms
@@ -99,7 +101,7 @@ def _llm_lote(lote: str, grupo: list[Contexto], icp: dict) -> None:
                                   plano_b=True, erro=erro_txt, lote=lote)  # fmt: skip
         for ctx, _ in pendentes:
             ctx.plano_b = True
-        return
+        return falha_provedor
     custo_lote = observabilidade.custo_estimado(t_in, t_out)
     with conectar() as con:
         for ctx, chave in pendentes:
@@ -111,6 +113,7 @@ def _llm_lote(lote: str, grupo: list[Contexto], icp: dict) -> None:
                 "INSERT INTO cache_ia (chave, criado_em, resposta) VALUES (?,?,?) ON CONFLICT(chave) DO NOTHING",
                 (chave, tempo.iso(), ctx.resultado.model_dump_json()),
             )
+    return None
 
 
 def tratar(lead_ids: list[int], ator: str, usar_llm: bool | None = None,
@@ -125,7 +128,8 @@ def tratar(lead_ids: list[int], ator: str, usar_llm: bool | None = None,
     limites = repositorio.config("limites_classificacao")
     conf_min = float(repositorio.config("confianca_minima_fila"))
     sla_horas = repositorio.config("sla_horas")
-    tamanho_lote = int(repositorio.config("tamanho_lote_ia") or 15)
+    # Saídas JSON completas são longas; lotes menores reduzem truncamento e erros de schema.
+    tamanho_lote = min(max(1, int(repositorio.config("tamanho_lote_ia") or 5)), 5)
 
     # Abre o tratamento e passa os leads para "Em tratamento".
     with conectar() as con:
@@ -181,12 +185,15 @@ def tratar(lead_ids: list[int], ator: str, usar_llm: bool | None = None,
         versao_modelo = ""
     ms_local = int((time.perf_counter() - t) * 1000 / max(len(ativos), 1))
 
-    # 4 a 6 com LLM, em lotes.
+    # 4 a 6 com LLM, em lotes. Erro de serviço é exibido e interrompe novas chamadas.
+    falha_gemini = None
     if usar_llm and ativos:
         grupos = [ativos[i : i + tamanho_lote] for i in range(0, len(ativos), tamanho_lote)]
         for n, grupo in enumerate(grupos, start=1):
             avisar(f"IA generativa: lote {n} de {len(grupos)}", 0.5 + 0.35 * n / len(grupos))
-            _llm_lote(lote, grupo, icp)
+            if falha_gemini:
+                continue
+            falha_gemini = _llm_lote(lote, grupo, icp)
 
     # Plano B onde não houve resultado do LLM.
     for ctx in ativos:
@@ -246,6 +253,16 @@ def tratar(lead_ids: list[int], ator: str, usar_llm: bool | None = None,
                 classe = nota.classificar(final, limites)
                 precisa = r.precisa_revisao_humana or bool(ctx.riscos)
                 etapa, motivo, explicacao = nota.destino(classe, conf, conf_min, precisa, final)
+                etapa, motivo, explicacao = nota.preservar_cnpj_publico(
+                    etapa,
+                    motivo,
+                    explicacao,
+                    origem=ctx.lead["origem"],
+                    base_ficticia=bool(ctx.lead["base_ficticia"]),
+                    opt_out=bool(ctx.lead["opt_out"]),
+                    nota_final=final,
+                    motor=ctx.motor,
+                )
                 decomposicao = {
                     "pesos": pesos, "partes": partes, "nota_final": final, "classificacao": classe,
                     "aderencia": r.nota_aderencia, "propensao": round(ctx.propensao * 100, 1), "confianca": conf,
@@ -319,6 +336,8 @@ def tratar(lead_ids: list[int], ator: str, usar_llm: bool | None = None,
         "destinos": dict(destinos),
         "motor": "gemini" if usar_llm else "local",
         "planos_b": sum(c.plano_b for c in contextos),
+        "falha_gemini": falha_gemini,
+        "usados_gemini": sum(c.motor == "gemini" for c in contextos),
         "tempo_s": round(time.perf_counter() - inicio_lote, 1),
     }
 

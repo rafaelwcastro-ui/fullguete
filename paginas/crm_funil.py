@@ -9,7 +9,7 @@ import streamlit as st
 
 import catalogo
 from banco import consultas, repositorio
-from nucleo import campanhas_ui, comercial, crm_operacional, estados, lgpd, tempo, ui
+from nucleo import campanhas_ui, comercial, crm_operacional, estados, lgpd, tempo, triagem, ui
 
 usuario = st.session_state["usuario"]
 
@@ -20,6 +20,57 @@ ui.cabecalho(
 )
 if msg := st.session_state.pop("crm_msg", None):
     st.success(msg)
+
+# ---------- pré-funil: CNPJs reais que ainda não chegaram ao CRM ----------
+cadastro_real = consultas.leads()
+pre_funil = cadastro_real[
+    (cadastro_real["base_ficticia"] == 0)
+    & cadastro_real["origem"].isin(("cnpja", "busca_cnpj"))
+    & ~cadastro_real["etapa"].isin(estados.ETAPAS_FUNIL)
+].copy()
+if usuario["papel"] == "bdr":
+    pre_funil = pre_funil[pre_funil["responsavel_id"] == usuario["id"]]
+elif usuario["papel"] == "executivo":
+    pre_funil = pre_funil[pre_funil["executivo_id"] == usuario["id"]]
+if not pre_funil.empty:
+    st.markdown("#### Pré-funil · empresas reais em prospecção")
+    st.caption(
+        "Os CNPJs a seguir são reais e estão cadastrados, mas ainda não avançaram "
+        "ao relacionamento comercial. Revisão e fila do BDR não equivalem a contato realizado."
+    )
+    pre_funil = campanhas_ui.aplicar(pre_funil, "id", "crm_pre_funil_campanha")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Empresas reais no pré-funil", len(pre_funil))
+    c2.metric("Aguardando revisão", int((pre_funil["etapa"] == estados.REVISAO).sum()))
+    c3.metric("Na fila do BDR", int((pre_funil["etapa"] == estados.FILA_BDR).sum()))
+    if not pre_funil.empty:
+        pesquisa_pre = st.text_input("Localizar CNPJ no pré-funil", key="crm_busca_pre")
+        if pesquisa_pre.strip():
+            chave = pesquisa_pre.strip().casefold()
+            pre_funil = pre_funil[
+                pre_funil["razao_social"].fillna("").str.casefold().str.contains(chave, regex=False)
+                | pre_funil["cnpj"].fillna("").str.contains(pesquisa_pre.strip(), regex=False)
+            ]
+        pre_funil["situacao"] = [
+            triagem.situacao_operacional(reg.etapa, reg.responsavel) for reg in pre_funil.itertuples()
+        ]
+        st.dataframe(
+            pre_funil[["cnpj", "razao_social", "etapa", "situacao", "nota_final", "tags", "responsavel"]],
+            hide_index=True,
+            width="stretch",
+            column_config={
+                "cnpj": "CNPJ",
+                "razao_social": "Empresa",
+                "etapa": "Etapa",
+                "situacao": "Próximo encaminhamento",
+                "nota_final": "Nota da IA",
+                "tags": "Campanha",
+                "responsavel": "Responsável",
+            },
+        )
+    if usuario["papel"] == "gestor" and st.button("Abrir triagem na Fila do BDR", key="crm_abrir_pre_funil"):
+        st.switch_page("paginas/fila_bdr.py")
+    st.divider()
 
 funil = consultas.leads(estados.ETAPAS_FUNIL)
 if usuario["papel"] == "bdr":
@@ -80,9 +131,8 @@ if resumo_funil["ficticios"]:
     )
 if resumo_funil["reais"] == 0:
     st.info(
-        "Nenhuma empresa real chegou ao funil comercial neste filtro. "
-        "Os CNPJs capturados podem estar em Capturado ou Retido LGPD, "
-        "etapas que não entram no Kanban de relacionamento."
+        "Nenhuma empresa real chegou ao Kanban de relacionamento neste filtro. "
+        "Os CNPJs capturados e tratados ficam no pré-funil acima até avançarem na jornada comercial."
     )
     if st.button("Localizar leads capturados e retidos", key="crm_navegar_todos"):
         st.switch_page("paginas/tratamento.py")

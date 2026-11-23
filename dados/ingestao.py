@@ -230,7 +230,9 @@ def entrada_recente(limite: int = 30) -> list[dict]:
     with conectar() as con:
         linhas = con.execute(
             """SELECT b.id, b.recebido_em, b.origem canal, b.status status_bruto, b.problemas, b.base_ficticia,
-                      l.id lead_id, l.razao_social, l.etapa
+                      l.id lead_id, l.razao_social, l.etapa, l.opt_out,
+                      (SELECT c.base_legal FROM consentimentos c
+                       WHERE c.lead_id=l.id ORDER BY c.id DESC LIMIT 1) base_contato
                FROM leads_brutos b LEFT JOIN leads l ON l.id = b.lead_id
                ORDER BY b.id DESC LIMIT ?""",
             (limite,),
@@ -239,13 +241,23 @@ def entrada_recente(limite: int = 30) -> list[dict]:
     for r in linhas:
         payload_nome = r["razao_social"] or ""
         status = "Rejeitado" if r["status_bruto"] == "Rejeitado" else STATUS_POR_ETAPA.get(r["etapa"], "Tratado")
+        problemas = [p for p in json.loads(r["problemas"] or "[]") if p != "Sem consentimento nem base legal"]
+        if r["lead_id"] is None:
+            contato_status = "Não cadastrado"
+        elif r["opt_out"]:
+            contato_status = "Opt-out"
+        elif r["base_contato"] == "sem_base":
+            contato_status = "Base de contato pendente"
+        else:
+            contato_status = "Base declarada"
         saida.append({
             "recebido_em": tempo.fmt(r["recebido_em"]),
             "empresa": payload_nome,
             "canal": CANAIS.get(r["canal"], r["canal"]),
             "status": status,
             "etapa": r["etapa"] or "",
-            "problemas": "; ".join(json.loads(r["problemas"] or "[]")),
+            "contato_status": contato_status,
+            "problemas": "; ".join(problemas),
             "lead_id": r["lead_id"],
             "ficticio": bool(r["base_ficticia"]),
         })  # fmt: skip

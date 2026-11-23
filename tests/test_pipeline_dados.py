@@ -34,11 +34,12 @@ def test_padroniza_campos_e_aponta_problemas():
     assert problemas == []
 
 
-def test_aponta_cnpj_invalido_e_sem_base_legal():
-    _, problemas = limpeza.padronizar({"razao_social": "X", "cnpj": "11222333000182", "email": "sem-arroba"})
+def test_aponta_cnpj_invalido_e_separa_pendencia_de_contato():
+    reg, problemas = limpeza.padronizar({"razao_social": "X", "cnpj": "11222333000182", "email": "sem-arroba"})
     assert "CNPJ com dígito verificador inválido" in problemas
     assert "E-mail inválido" in problemas
-    assert "Sem consentimento nem base legal" in problemas
+    assert reg["base_legal"] == "sem_base"
+    assert "Sem consentimento nem base legal" not in problemas
 
 
 def test_chave_de_deduplicacao():
