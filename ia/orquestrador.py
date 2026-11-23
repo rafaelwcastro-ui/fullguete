@@ -246,6 +246,16 @@ def tratar(lead_ids: list[int], ator: str, usar_llm: bool | None = None,
                 classe = nota.classificar(final, limites)
                 precisa = r.precisa_revisao_humana or bool(ctx.riscos)
                 etapa, motivo, explicacao = nota.destino(classe, conf, conf_min, precisa, final)
+                etapa, motivo, explicacao = nota.preservar_cnpj_publico(
+                    etapa,
+                    motivo,
+                    explicacao,
+                    origem=ctx.lead["origem"],
+                    base_ficticia=bool(ctx.lead["base_ficticia"]),
+                    opt_out=bool(ctx.lead["opt_out"]),
+                    nota_final=final,
+                    motor=ctx.motor,
+                )
                 decomposicao = {
                     "pesos": pesos, "partes": partes, "nota_final": final, "classificacao": classe,
                     "aderencia": r.nota_aderencia, "propensao": round(ctx.propensao * 100, 1), "confianca": conf,
