@@ -97,8 +97,13 @@ def registrar(
     agora = tempo.iso()
     # Somente os critérios de pesquisa são mantidos. Tokens de paginação são eliminados.
     permitidos = {
-        "limit", "address.state.in", "address.municipality.in", "status.id.in",
-        "founded.gte", "founded.lte", "mainActivity.id.in",
+        "limit",
+        "address.state.in",
+        "address.municipality.in",
+        "status.id.in",
+        "founded.gte",
+        "founded.lte",
+        "mainActivity.id.in",
     }
     filtros_salvos = {k: v for k, v in filtros.items() if k in permitidos}
     with conectar() as con:
