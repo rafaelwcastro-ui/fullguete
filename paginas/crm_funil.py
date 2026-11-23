@@ -245,17 +245,39 @@ with aba_opp:
     execs = repositorio.usuarios("executivo")
     ids_exec = [e["id"] for e in execs]
     with st.form(f"opp_{lead_id}"):
-        solucoes = st.multiselect("Soluções propostas (catálogo Equifax)", [s["id"] for s in catalogo.solucoes()], format_func=catalogo.nome,
-            default=opp.get("solucoes") or ([lead["solucao_principal"]] if lead["solucao_principal"] else []), placeholder="Selecione")  # fmt: skip
+        ids_catalogo = [sol["id"] for sol in catalogo.solucoes()]
+        sugestoes = opp.get("solucoes") or (
+            [lead["solucao_principal"]] if lead["solucao_principal"] else []
+        )
+        solucoes = st.multiselect(
+            "Soluções propostas (catálogo Equifax)",
+            ids_catalogo,
+            default=[sol for sol in sugestoes if sol in ids_catalogo],
+            format_func=catalogo.nome,
+            placeholder="Selecione",
+        )
         a, b, c = st.columns(3)
-        valor = a.number_input("Valor estimado mensal (R$, fictício)", min_value=0.0, step=500.0,
-                               value=float(opp.get("valor_mensal") or 0))  # fmt: skip
+        valor = a.number_input(
+            "Valor mensal estimado (R$)",
+            min_value=0.0,
+            step=500.0,
+            value=crm_operacional.valor_seguro(opp.get("valor_mensal")),
+        )
         atual_exec = opp.get("executivo_id") or lead["executivo_id"]
-        executivo = b.selectbox("Executivo responsável", ids_exec, format_func={e["id"]: e["nome"] for e in execs}.get,
-                                index=ids_exec.index(atual_exec) if atual_exec in ids_exec else 0)  # fmt: skip
+        opcoes_exec = [None, *ids_exec]
+        nomes_exec = {e["id"]: e["nome"] for e in execs}
+        executivo = b.selectbox(
+            "Executivo responsável",
+            opcoes_exec,
+            format_func=lambda ident: nomes_exec.get(ident, "Não atribuído"),
+            index=opcoes_exec.index(atual_exec) if atual_exec in opcoes_exec else 0,
+        )
         prev_atual = opp.get("previsao_fechamento")
-        previsao = c.date_input("Previsão de fechamento", value=date.fromisoformat(prev_atual) if prev_atual else None,
-                                format="DD/MM/YYYY")  # fmt: skip
+        previsao = c.date_input(
+            "Previsão de fechamento",
+            value=date.fromisoformat(prev_atual) if prev_atual else None,
+            format="DD/MM/YYYY",
+        )
         salvar = st.form_submit_button("Salvar oportunidade", type="primary")
     if salvar:
         try:
@@ -266,20 +288,23 @@ with aba_opp:
         else:
             st.session_state["crm_msg"] = "Oportunidade salva."
             st.rerun()
-    st.caption("Valores fictícios, só para a demonstração do funil e da receita prevista.")
+    st.caption(
+        "Valores informados representam estimativas comerciais; quando a empresa é da base demonstrativa, "
+        "a oportunidade e seus valores são simulados."
+    )
 
 with aba_passagem:
     if opp.get("resumo_passagem"):
         st.text(opp["resumo_passagem"])
     else:
         st.caption("Ainda sem resumo. Ele é gerado quando o BDR qualifica e agenda a reunião.")
-    if st.button("Gerar resumo de novo", icon=":material/refresh:"):
-        if opp:
-            with st.spinner("Gerando..."):
-                comercial.regerar_resumo(lead_id)
-            st.rerun()
-        else:
-            st.warning("Crie a oportunidade antes de gerar o resumo.")
+    if st.button("Gerar resumo de passagem", icon=":material/refresh:", disabled=not bool(opp)):
+        with st.spinner("Gerando resumo de passagem..."):
+            comercial.regerar_resumo(lead_id)
+        st.session_state["crm_msg"] = "Resumo comercial atualizado."
+        st.rerun()
+    if not opp:
+        st.caption("Salve uma oportunidade antes de gerar o resumo para o executivo.")
 
 with aba_tempo:
     cores = {"Captura": "info", "Tratamento IA": "destaque", "Etapa": "", "Atividade do BDR": "alerta",
