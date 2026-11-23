@@ -13,9 +13,7 @@ from nucleo import comercial, crm_operacional, estados
 
 def test_menu_solucao_aceita_nan_none_e_tipos_mistos():
     valores = ["Prospecção Qualificada", float("nan"), None, "", 12, " Antifraude ", "antifraude"]
-    assert crm_operacional.opcoes_solucoes(valores) == [
-        "Antifraude", "antifraude", "Prospecção Qualificada"
-    ]
+    assert crm_operacional.opcoes_solucoes(valores) == ["Antifraude", "antifraude", "Prospecção Qualificada"]
     assert crm_operacional.nome_solucao(None) == ""
     assert crm_operacional.nome_solucao(float("nan")) == ""
     assert crm_operacional.nome_solucao("") == ""
@@ -73,9 +71,7 @@ def test_funil_real_tem_acoes_que_gravam_atividade_e_movem_etapa(base_carregada)
     candidato = consultas.leads([estados.EM_CONTATO]).iloc[0]
     lead_id = int(candidato["id"])
     gestor = repositorio.usuarios("gestor")[0]
-    comercial.registrar_atividade(
-        lead_id, gestor, "Nota", "", "Próximo passo validado pelo CRM", "Enviar proposta"
-    )
+    comercial.registrar_atividade(lead_id, gestor, "Nota", "", "Próximo passo validado pelo CRM", "Enviar proposta")
     assert consultas.lead(lead_id)["proxima_acao"] == "Enviar proposta"
     assert consultas.atividades(lead_id)[0]["anotacao"] == "Próximo passo validado pelo CRM"
     comercial.mover_no_funil(lead_id, gestor, estados.QUALIFICADO)
