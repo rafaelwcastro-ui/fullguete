@@ -129,6 +129,18 @@ def bant(lead_id: int) -> dict | None:
     return dict(linha) if linha else None
 
 
+def bant_validacoes(lead_id: int) -> dict[str, bool]:
+    """Retorna somente critérios confirmados explicitamente pelo BDR."""
+    with conectar() as con:
+        return {
+            linha["campo"]: bool(linha["confirmado"])
+            for linha in con.execute(
+                "SELECT campo, confirmado FROM bant_validacoes WHERE lead_id=?",
+                (lead_id,),
+            )
+        }
+
+
 def oportunidade(lead_id: int) -> dict | None:
     with conectar() as con:
         linha = con.execute("SELECT * FROM oportunidades WHERE lead_id=?", (lead_id,)).fetchone()
