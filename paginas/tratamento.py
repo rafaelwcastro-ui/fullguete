@@ -173,8 +173,8 @@ with aba_todos:
         )
         if not todos.empty:
             st.caption(
-                "Retido LGPD = cadastro encontrado e preservado, mas contato bloqueado. "
-                "Somente leads liberados, classificados e atribuídos aparecem na Fila do BDR."
+                "Retido LGPD indica opt-out ou outra retenção. CNPJs sem base de contato seguem para análise interna; "
+                "a liberação para abordagem exige base legal documentada."
             )
 
 # ---------- leads tratados ----------
