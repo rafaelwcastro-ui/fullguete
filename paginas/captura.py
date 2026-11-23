@@ -7,8 +7,8 @@ import time
 import pandas as pd
 import streamlit as st
 
-from dados import cnpj as cnpj_util
 from dados import busca_cnpj, cnpjws, ingestao, limpeza
+from dados import cnpj as cnpj_util
 from dados.features import INTERESSES, PORTES
 from nucleo import config, ui
 
@@ -287,7 +287,7 @@ with aba_busca_real:
         limite = a.selectbox("Resultados por página", [10, 25, 50, 100], index=1)
         buscar_real = b.form_submit_button(
             "Buscar empresas reais", type="primary", icon=":material/search:",
-            disabled=not bool(chave), use_container_width=True,
+            disabled=not bool(chave), width="stretch",
         )
     st.write("Filtros:", segmento, f"{cidade}/{uf}", f"Abertura: {busca_cnpj.MESES[mes - 1]}/{ano}")
 
@@ -372,26 +372,29 @@ with aba_busca_real:
                     registros.append(empresa)
                 _mostrar_resultado(ingestao.receber(registros, "busca_cnpj", ator))
 
-        if st.session_state.get("busca_real_mais") and st.session_state.get("busca_real_cursor"):
-            if st.button("Carregar próxima página", icon=":material/arrow_forward:"):
-                try:
-                    filtros = {
-                        **st.session_state["busca_real_filtros"],
-                        "cursor": st.session_state["busca_real_cursor"],
-                    }
-                    with st.spinner("Carregando mais empresas..."):
-                        proxima = busca_cnpj.buscar(chave, filtros)
-                except busca_cnpj.ErroBusca as erro:
-                    st.error(str(erro))
-                else:
-                    existentes = {r["cnpj"]: r for r in st.session_state["busca_real_resultados"]}
-                    existentes.update({r["cnpj"]: r for r in proxima.registros})
-                    st.session_state["busca_real_resultados"] = list(existentes.values())
-                    st.session_state["busca_real_cursor"] = proxima.next_cursor
-                    st.session_state["busca_real_mais"] = proxima.has_more
-                    st.session_state["busca_real_snapshot"] = proxima.snapshot
-                    st.session_state.pop("busca_real_selecionados", None)
-                    st.rerun()
+        if (
+            st.session_state.get("busca_real_mais")
+            and st.session_state.get("busca_real_cursor")
+            and st.button("Carregar próxima página", icon=":material/arrow_forward:")
+        ):
+            try:
+                filtros = {
+                    **st.session_state["busca_real_filtros"],
+                    "cursor": st.session_state["busca_real_cursor"],
+                }
+                with st.spinner("Carregando mais empresas..."):
+                    proxima = busca_cnpj.buscar(chave, filtros)
+            except busca_cnpj.ErroBusca as erro:
+                st.error(str(erro))
+            else:
+                existentes = {r["cnpj"]: r for r in st.session_state["busca_real_resultados"]}
+                existentes.update({r["cnpj"]: r for r in proxima.registros})
+                st.session_state["busca_real_resultados"] = list(existentes.values())
+                st.session_state["busca_real_cursor"] = proxima.next_cursor
+                st.session_state["busca_real_mais"] = proxima.has_more
+                st.session_state["busca_real_snapshot"] = proxima.snapshot
+                st.session_state.pop("busca_real_selecionados", None)
+                st.rerun()
 
 # ---------- site / webhook simulado ----------
 with aba_site:
