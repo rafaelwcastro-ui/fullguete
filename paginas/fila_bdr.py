@@ -11,7 +11,7 @@ import streamlit as st
 import catalogo
 from banco import consultas, repositorio
 from ia import nota
-from nucleo import auth, comercial, componentes, estados, tempo, ui
+from nucleo import auth, campanhas_ui, comercial, componentes, estados, tempo, ui
 
 usuario = st.session_state["usuario"]
 
@@ -53,7 +53,15 @@ d.metric("Reuniões na semana", metas["reunioes_semana"])
 carteira = consultas.carteira(dono["id"])
 fila = carteira[carteira["etapa"].isin(comercial.ETAPAS_ATIVAS_BDR) & (carteira["opt_out"] == 0)].copy()
 if fila.empty:
-    st.info("Fila vazia. Os leads chegam aqui depois do Tratamento IA (Quentes e Mornos com boa confiança).")
+    st.info(
+        "Fila vazia. Os leads importados podem estar em Capturado, Retido LGPD, "
+        "Revisão ou Nutrição. Confira a aba Todos os leads no Tratamento IA."
+    )
+    st.stop()
+
+fila = campanhas_ui.aplicar(fila, "id", "bdr_campanha")
+if fila.empty:
+    st.info("Esta campanha não possui leads liberados para este BDR.")
     st.stop()
 
 agora = tempo.iso()
@@ -109,11 +117,12 @@ with lista:
     if vis.empty:
         st.caption("Nenhum lead com esse filtro.")
         st.stop()
-    tabela = vis[["empresa", "nota_final", "classificacao", "etapa", "prazo"]].reset_index(drop=True)
+    tabela = vis[["empresa", "tags", "nota_final", "classificacao", "etapa", "prazo"]].reset_index(drop=True)
     evento = st.dataframe(
         tabela, hide_index=True, width="stretch", on_select="rerun", selection_mode="single-row", key="fila_tabela",
         column_config={
             "empresa": st.column_config.TextColumn("Empresa", width="medium"),
+            "tags": st.column_config.TextColumn("Campanhas", width="medium"),
             "nota_final": st.column_config.ProgressColumn("Nota", min_value=0, max_value=100, format="%.0f"),
             "classificacao": "Classe", "etapa": "Etapa", "prazo": "Prazo",
         },
