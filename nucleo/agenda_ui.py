@@ -24,10 +24,7 @@ def _formulario(usuario: dict, *, prefixo: str, lead_id: int | None = None) -> N
     if carteira.empty:
         st.info("Nenhum lead elegível para criar compromissos na sua carteira.")
         return
-    nomes = {
-        int(reg.id): f"{reg.nome_fantasia or reg.razao_social} · #{reg.id}"
-        for reg in carteira.itertuples()
-    }
+    nomes = {int(reg.id): f"{reg.nome_fantasia or reg.razao_social} · #{reg.id}" for reg in carteira.itertuples()}
     hoje = tempo.hoje_local()
     with st.form(f"{prefixo}_novo_compromisso"):
         if lead_id is None:
@@ -78,10 +75,7 @@ def ficha(lead_id: int, usuario: dict, *, prefixo: str = "bdr") -> None:
         st.success(msg)
     with st.expander("Agendar retorno, tarefa ou reunião", expanded=False):
         _formulario(usuario, prefixo=prefixo, lead_id=lead_id)
-    compromissos = [
-        evento for evento in agenda.listar(usuario, limite=300)
-        if evento["lead_id"] == lead_id
-    ]
+    compromissos = [evento for evento in agenda.listar(usuario, limite=300) if evento["lead_id"] == lead_id]
     if compromissos:
         st.caption("Compromissos pendentes desta empresa")
         for evento in compromissos[:5]:
@@ -94,14 +88,11 @@ def painel(usuario: dict, *, prefixo: str = "crm") -> None:
         st.success(msg)
     eventos = agenda.listar(usuario, limite=300)
     hoje = tempo.hoje_local()
-    atrasados = [
-        ev for ev in eventos if (tempo.local(ev["inicio_em"]) or tempo.agora()).date() < hoje
-    ]
-    agenda_hoje = [
-        ev for ev in eventos if (tempo.local(ev["inicio_em"]) or tempo.agora()).date() == hoje
-    ]
+    atrasados = [ev for ev in eventos if (tempo.local(ev["inicio_em"]) or tempo.agora()).date() < hoje]
+    agenda_hoje = [ev for ev in eventos if (tempo.local(ev["inicio_em"]) or tempo.agora()).date() == hoje]
     proximos = [
-        ev for ev in eventos
+        ev
+        for ev in eventos
         if hoje <= (tempo.local(ev["inicio_em"]) or tempo.agora()).date() <= hoje + timedelta(days=7)
     ]
     with st.expander("Minha agenda comercial · tarefas e reuniões", expanded=True):
@@ -110,8 +101,10 @@ def painel(usuario: dict, *, prefixo: str = "crm") -> None:
         b.metric("Próximos 7 dias", len(proximos))
         c.metric("Atrasados", len(atrasados))
         filtro = st.segmented_control(
-            "Visualização", ["Hoje", "Próximos 7 dias", "Atrasados", "Todos"],
-            default="Próximos 7 dias", key=f"{prefixo}_filtro",
+            "Visualização",
+            ["Hoje", "Próximos 7 dias", "Atrasados", "Todos"],
+            default="Próximos 7 dias",
+            key=f"{prefixo}_filtro",
         )
         escolhidos = {
             "Hoje": agenda_hoje,
@@ -149,8 +142,7 @@ def painel(usuario: dict, *, prefixo: str = "crm") -> None:
                 },
             )
             nomes = {
-                ev["id"]: f"{tempo.fmt(ev['inicio_em'])} · {ev['titulo']} · {ev['razao_social']}"
-                for ev in escolhidos
+                ev["id"]: f"{tempo.fmt(ev['inicio_em'])} · {ev['titulo']} · {ev['razao_social']}" for ev in escolhidos
             }
             selecionado = st.selectbox(
                 "Gerenciar compromisso",
@@ -178,8 +170,10 @@ def painel(usuario: dict, *, prefixo: str = "crm") -> None:
             evento_selecionado = next(e for e in escolhidos if e["id"] == selecionado)
             etapa = evento_selecionado["etapa"]
             rotulo = (
-                "Abrir na Fila do BDR" if etapa in comercial.ETAPAS_ATIVAS_BDR
-                else "Abrir no CRM" if etapa in estados.ETAPAS_FUNIL
+                "Abrir na Fila do BDR"
+                if etapa in comercial.ETAPAS_ATIVAS_BDR
+                else "Abrir no CRM"
+                if etapa in estados.ETAPAS_FUNIL
                 else "Abrir na Carteira"
             )
             if c.button(rotulo, key=f"{prefixo}_abrir_lead"):
@@ -193,5 +187,5 @@ def painel(usuario: dict, *, prefixo: str = "crm") -> None:
                 else:
                     st.session_state["carteira_abrir_id"] = ident
                     st.switch_page("paginas/carteira.py")
-        with st.expander("Novo compromisso", expanded=False):
-            _formulario(usuario, prefixo=prefixo)
+    with st.expander("Novo compromisso", expanded=False):
+        _formulario(usuario, prefixo=prefixo)
