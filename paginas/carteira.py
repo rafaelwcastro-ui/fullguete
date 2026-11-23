@@ -15,7 +15,7 @@ pode_encaminhar = usuario["papel"] == "gestor"
 ui.cabecalho(
     "Carteira",
     "Todos os leads em qualquer etapa, com a última atividade e a próxima ação."
-    + (" Como gestor, você vê a carteira de todos e pode redistribuir." if gestor else ""),
+    + (" Como gestor, você vê todos os leads e pode encaminhar ou redistribuir." if pode_encaminhar else ""),
     secao="Prospecção",
 )
 if msg := st.session_state.pop("carteira_msg", None):
@@ -213,9 +213,9 @@ with st.expander("Registrar nota de acompanhamento", expanded=False):
                 st.rerun()
 
 
-if gestor:
+if pode_encaminhar:
     st.divider()
-    ui.rotulo("Redistribuir leads")
+    ui.rotulo("Redistribuir leads ativos")
     bdrs = repositorio.usuarios("bdr")
     ativos = vis[vis["etapa"].isin([*comercial.ETAPAS_ATIVAS_BDR, estados.REUNIAO, estados.PROPOSTA, estados.NUTRICAO])]
     if not bdrs:
