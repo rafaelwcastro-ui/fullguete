@@ -11,7 +11,20 @@ import streamlit as st
 import catalogo
 from banco import consultas, repositorio
 from ia import nota
-from nucleo import agenda_ui, auth, campanhas_ui, comercial, componentes, crm_operacional, estados, gestao_leads, lgpd, tempo, triagem, ui
+from nucleo import (
+    agenda_ui,
+    auth,
+    campanhas_ui,
+    comercial,
+    componentes,
+    crm_operacional,
+    estados,
+    gestao_leads,
+    lgpd,
+    tempo,
+    triagem,
+    ui,
+)
 
 usuario = st.session_state["usuario"]
 
