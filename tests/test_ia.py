@@ -156,14 +156,15 @@ def test_orquestrador_do_capturado_ate_a_fila(base_carregada):
     assert hist == [estados.CAPTURADO, estados.EM_TRATAMENTO, estados.TRATADO, estados.FILA_BDR]
 
 
-def test_sem_base_legal_fica_retido_e_nao_chama_ia(base_carregada, monkeypatch):
-    chamadas = []
-    monkeypatch.setattr(provedor, "disponivel", lambda: True)
-    monkeypatch.setattr(provedor, "chamar", lambda *a, **k: chamadas.append(1))
+def test_sem_base_contato_continua_qualificacao_ia_sem_cadencia(base_carregada):
     lead_id = _capturar(consentimento="", base_legal="")
-    orquestrador.tratar([lead_id], "teste", usar_llm=True)
-    assert consultas.lead(lead_id)["etapa"] == estados.RETIDO
-    assert chamadas == []
+    resumo = orquestrador.tratar([lead_id], "teste", usar_llm=False)
+    assert resumo["total"] == 1
+    lead = consultas.lead(lead_id)
+    assert lead["etapa"] != estados.RETIDO
+    assert lead["solucao_principal"] in catalogo.ids()
+    assert consultas.ultimo_tratamento(lead_id)["resultado"]
+    assert consultas.cadencia(lead_id) == []
 
 
 def test_opt_out_na_origem_bloqueia_fila(base_carregada):
