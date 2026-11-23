@@ -27,7 +27,7 @@ def _empresa():
 
 def test_tags_filtros_varejo_campinas_abril_2026():
     filtros = busca_cnpj.parametros("Varejo", "Campinas", "SP", 2026, 4)
-    assert filtros["cidade"] == "Campinas"
+    assert filtros["cidade"] == "CAMPINAS"
     assert filtros["uf"] == "SP"
     assert filtros["atividade"] == "VAREJISTA"
     assert filtros["abertura_de"] == "2026-04-01"
@@ -72,6 +72,8 @@ def test_consulta_real_mockada_e_paginacao(monkeypatch):
     assert pagina.registros[0]["base_legal"] == "sem_base"
     assert chamadas[0][1] == {"Authorization": "Bearer minha-chave"}
     assert chamadas[0][2]["abertura_de"] == "2026-04-01"
+    assert chamadas[0][2]["cidade"] == "CAMPINAS"
+    assert pagina.total_api == 1 and pagina.descartados == 0
     assert chamadas[0][4] is False
     assert "NOME SIGILOSO" not in str(pagina.registros)
     assert "pessoa.sigilo" not in str(pagina.registros)
@@ -100,3 +102,77 @@ def test_importar_ausencia_base_legal_sem_criar_contatos(base_carregada):
     assert consultas.consentimento(lead_id)["base_legal"] == "sem_base"
     duplicado = ingestao.receber([registro], "busca_cnpj", "teste")
     assert not duplicado.criados and len(duplicado.duplicados) == 1
+
+
+def test_normaliza_cidades_sem_acentos_e_espacos():
+    filtros = busca_cnpj.parametros("Todos", "  São   Paulo  ", "SP", 2026, 2, limite=10)
+    assert filtros["cidade"] == "SAO PAULO"
+    assert filtros["abertura_de"] == "2026-02-01"
+    assert filtros["abertura_ate"] == "2026-02-28"
+    assert "atividade" not in filtros
+    assert busca_cnpj.normalizar_cidade("São José dos Campos") == "SAO JOSE DOS CAMPOS"
+
+
+def test_api_devolve_zero_sem_problema_de_normalizacao(monkeypatch):
+    class RespostaVazia:
+        status_code = 200
+
+        def json(self):
+            return {
+                "resultados": [],
+                "has_more": False,
+                "next_cursor": None,
+                "snapshot": "2026-10",
+            }
+
+    monkeypatch.setattr(busca_cnpj.requests, "get", lambda *a, **k: RespostaVazia())
+    pagina = busca_cnpj.buscar("chave-teste", busca_cnpj.parametros("Todos", "São Paulo", "SP", 2026, 2))
+    assert pagina.registros == []
+    assert pagina.total_api == 0
+    assert pagina.descartados == 0
+    assert not pagina.has_more
+
+
+def test_api_registros_sem_cnpj_sao_contabilizados(monkeypatch):
+    class RespostaIncompleta:
+        status_code = 200
+
+        def json(self):
+            return {
+                "resultados": [{"razao_social": "Empresa sem CNPJ"}],
+                "has_more": False,
+                "next_cursor": None,
+            }
+
+    monkeypatch.setattr(busca_cnpj.requests, "get", lambda *a, **k: RespostaIncompleta())
+    pagina = busca_cnpj.buscar("chave-teste", {"uf": "SP"})
+    assert pagina.registros == []
+    assert pagina.total_api == 1
+    assert pagina.descartados == 1
+
+
+def test_autenticacao_api_sem_expor_dados_pessoais(monkeypatch):
+    urls = []
+
+    class RespostaConta:
+        status_code = 200
+
+        def json(self):
+            return {
+                "active": True,
+                "plan": "free",
+                "email": "contato.sigiloso@exemplo.invalid",
+                "id": "segredo-de-identificacao",
+            }
+
+    def get(url, *, headers, timeout, allow_redirects):
+        urls.append((url, headers, timeout, allow_redirects))
+        return RespostaConta()
+
+    monkeypatch.setattr(busca_cnpj.requests, "get", get)
+    status = busca_cnpj.verificar_conexao("minha-chave")
+    assert status == {"plano": "free", "ativa": True}
+    assert urls[0][0].endswith("/auth/me")
+    assert urls[0][1] == {"Authorization": "Bearer minha-chave"}
+    assert "contato.sigiloso" not in str(status)
+    assert "segredo-de-identificacao" not in str(status)
