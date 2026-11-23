@@ -28,8 +28,7 @@ if msg := st.session_state.pop("fila_msg", None):
 if usuario["papel"] in ("gestor", "executivo"):
     cadastrados = consultas.leads()
     reais = cadastrados[
-        (cadastrados["base_ficticia"] == 0)
-        & cadastrados["origem"].isin(("cnpja", "busca_cnpj"))
+        (cadastrados["base_ficticia"] == 0) & cadastrados["origem"].isin(("cnpja", "busca_cnpj"))
     ].copy()
     st.markdown("#### Onde estão os CNPJs capturados?")
     if reais.empty:
@@ -41,9 +40,7 @@ if usuario["papel"] in ("gestor", "executivo"):
         b.metric("Na fila BDR", int((reais["etapa"] == estados.FILA_BDR).sum()))
         c.metric("Revisão / nutrição", int(reais["etapa"].isin((estados.REVISAO, estados.NUTRICAO)).sum()))
         d.metric("Sem BDR", int(reais["responsavel_id"].isna().sum()))
-        reais["diagnostico"] = [
-            triagem.situacao_operacional(r.etapa, r.responsavel) for r in reais.itertuples()
-        ]
+        reais["diagnostico"] = [triagem.situacao_operacional(r.etapa, r.responsavel) for r in reais.itertuples()]
         with st.expander("Localizar CNPJs por destino da IA e encaminhar para um BDR", expanded=True):
             pesquisa = st.text_input("Buscar empresa ou CNPJ importado", key="fila_busca_reais")
             fora_da_fila = st.checkbox("Mostrar só os que não chegaram à fila", value=True)
@@ -71,22 +68,18 @@ if usuario["papel"] in ("gestor", "executivo"):
                 },
             )
             if usuario["papel"] == "gestor":
-                elegiveis = pendentes[
-                    pendentes["etapa"].isin(triagem.ENCAMINHAVEIS) & (pendentes["opt_out"] == 0)
-                ]
+                elegiveis = pendentes[pendentes["etapa"].isin(triagem.ENCAMINHAVEIS) & (pendentes["opt_out"] == 0)]
                 disponiveis = repositorio.usuarios("bdr")
                 if not elegiveis.empty and disponiveis:
                     with st.form("fila_encaminhamento_cnpja"):
-                        alvos = {
-                            int(r.id): f"#{r.id} {r.razao_social} · {r.etapa}"
-                            for r in elegiveis.itertuples()
-                        }
+                        alvos = {int(r.id): f"#{r.id} {r.razao_social} · {r.etapa}" for r in elegiveis.itertuples()}
                         escolhidos = st.multiselect("Selecionar leads tratados", list(alvos), format_func=alvos.get)
                         nomes = {x["id"]: x["nome"] for x in disponiveis}
                         bdr_destino = st.selectbox("Encaminhar ao BDR", list(nomes), format_func=nomes.get)
                         justificativa = st.text_area(
-                            "Justificativa da triagem manual", max_chars=500,
-                            placeholder="Por que a oportunidade merece avaliação comercial?"
+                            "Justificativa da triagem manual",
+                            max_chars=500,
+                            placeholder="Por que a oportunidade merece avaliação comercial?",
                         )
                         enviar = st.form_submit_button("Enviar selecionados à fila", type="primary")
                     if enviar:
@@ -133,8 +126,7 @@ if dono is not None:
     metas = consultas.metas_do_dia(dono["id"], inicio_dia, inicio_semana, tempo.iso(), hoje.isoformat())
 else:
     metricas = [
-        consultas.metas_do_dia(bdr["id"], inicio_dia, inicio_semana, tempo.iso(), hoje.isoformat())
-        for bdr in bdrs
+        consultas.metas_do_dia(bdr["id"], inicio_dia, inicio_semana, tempo.iso(), hoje.isoformat()) for bdr in bdrs
     ]
     metas = {k: sum(m[k] for m in metricas) for k in ("contatos", "meta", "retornos", "atrasados", "reunioes_semana")}
 a, b, c, d = st.columns(4)
