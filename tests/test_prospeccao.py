@@ -6,7 +6,6 @@ import pandas as pd
 
 from banco import consultas, prospeccao
 from banco.conexao import conectar
-from dados import ingestao
 from ia import agentes
 from nucleo import estados
 
