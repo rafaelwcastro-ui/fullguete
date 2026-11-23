@@ -71,9 +71,18 @@ if usuario["papel"] in ("gestor", "executivo"):
                 elegiveis = pendentes[pendentes["etapa"].isin(triagem.ENCAMINHAVEIS) & (pendentes["opt_out"] == 0)]
                 disponiveis = repositorio.usuarios("bdr")
                 if not elegiveis.empty and disponiveis:
+                    selecionar_todos = st.checkbox(
+                        "Selecionar todos os leads elegíveis visíveis (máximo 100)",
+                        key="fila_selecionar_todos_elegiveis",
+                    )
                     with st.form("fila_encaminhamento_cnpja"):
                         alvos = {int(r.id): f"#{r.id} {r.razao_social} · {r.etapa}" for r in elegiveis.itertuples()}
-                        escolhidos = st.multiselect("Selecionar leads tratados", list(alvos), format_func=alvos.get)
+                        escolhidos = st.multiselect(
+                            "Selecionar leads tratados",
+                            list(alvos),
+                            default=list(alvos)[:100] if selecionar_todos else [],
+                            format_func=alvos.get,
+                        )
                         nomes = {x["id"]: x["nome"] for x in disponiveis}
                         bdr_destino = st.selectbox("Encaminhar ao BDR", list(nomes), format_func=nomes.get)
                         justificativa = st.text_area(
