@@ -188,7 +188,7 @@ abertura é preservada no cadastro e as buscas anteriores à migração têm ess
 recuperada dos registros brutos quando disponível.
 
 Use **Tratamento IA → Todos os leads** para localizar qualquer empresa, inclusive as
-retidas por falta de base legal, em revisão e ainda não atribuídas. Os filtros de
+em revisão, sem base de contato validada e ainda não atribuídas. Os filtros de
 campanha aparecem também na lista de tratados, Carteira, Fila do BDR, CRM e
 Governança/LGPD. O lead não deve ser apresentado como desaparecido só porque não
 está habilitado a seguir para contato.
@@ -206,5 +206,6 @@ ou indicadores de risco. O ICP em **Tratamento IA → ICP**, os pesos e limites 
 **Governança → Pesos e limites** e as correções de BDR permitem evoluir a
 calibração. A propensão de conversão não deve ser interpretada como probabilidade
 estatisticamente validada em clientes reais enquanto o modelo depender de treinamento
-em base fictícia. Os leads sem base legal para contato continuam retidos e não são
-enviados ao LLM, conforme as regras atuais de governança.
+em base fictícia. Leads com base de contato pendente seguem para análise de IA e classificação interna,
+sem cadência de abordagem. Ligações, mensagens e reuniões dependem de base legal
+fundamentada, enquanto o opt-out mantém o bloqueio de contato e tratamento comercial.

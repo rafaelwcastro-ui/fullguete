@@ -39,7 +39,7 @@ ORIGENS_ROTULO = {
 REGRAS_ENTRADA = [
     "Obrigatório: nome da empresa ou CNPJ válido.",
     "Deduplicação: mesmo CNPJ, ou mesmo nome, cidade e UF quando não há CNPJ.",
-    "Consentimento: sem base legal o lead entra, mas fica Retido LGPD e não recebe contato.",
+    "CNPJ sem base de contato pode ser cadastrado e qualificado; contato depende de base documentada.",
     "Dados pessoais do contato ficam em tabela separada e nunca vão para a IA.",
 ]
 
