@@ -466,7 +466,8 @@ with aba_cnpja:
                     _mostrar_resultado(resultado_importacao_c)
                     st.info(
                         f"Leads vinculados à campanha {pesquisa_atual_c.tag}. "
-                        "Eles podem aparecer como Capturados, Retidos LGPD ou Tratados."
+                        "Após o tratamento podem ir para revisão, triagem do BDR ou outra etapa. "
+                        "Pendência de base de contato não significa que o CNPJ foi descartado."
                     )
 
         if pagina_c.next_token and st.button("Carregar próxima página (consome créditos)", key="cnpja_proxima"):
@@ -825,12 +826,13 @@ if recentes:
         f"{e}  (fictícia)" if f else e for e, f in zip(tabela["empresa"], tabela["ficticio"], strict=False)
     ]
     st.dataframe(
-        tabela[["recebido_em", "empresa", "canal", "status", "etapa", "problemas"]],
+        tabela[["recebido_em", "empresa", "canal", "status", "etapa", "contato_status", "problemas"]],
         hide_index=True,
         width="stretch",
         column_config={
             "recebido_em": "Recebido em", "empresa": "Empresa", "canal": "Canal", "status": "Status",
-            "etapa": "Etapa do lead", "problemas": st.column_config.TextColumn("Problemas", width="large"),
+            "etapa": "Etapa do lead", "contato_status": "Situação para contato",
+            "problemas": st.column_config.TextColumn("Problemas cadastrais", width="large"),
         },
     )  # fmt: skip
 else:
