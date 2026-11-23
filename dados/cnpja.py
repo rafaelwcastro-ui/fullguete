@@ -24,8 +24,18 @@ SEGMENTOS = {
     "Transporte": ("4930201", "4930202", "5320202"),
 }
 MESES = (
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+    "Janeiro",
+    "Fevereiro",
+    "Março",
+    "Abril",
+    "Maio",
+    "Junho",
+    "Julho",
+    "Agosto",
+    "Setembro",
+    "Outubro",
+    "Novembro",
+    "Dezembro",
 )
 
 
@@ -45,18 +55,14 @@ class Resultado:
 
 
 def _normalizar(s: str) -> str:
-    texto = "".join(
-        ch for ch in unicodedata.normalize("NFKD", s or "") if not unicodedata.combining(ch)
-    )
+    texto = "".join(ch for ch in unicodedata.normalize("NFKD", s or "") if not unicodedata.combining(ch))
     return re.sub(r"\s+", " ", texto).strip().upper()
 
 
 def _obter(url: str, chave: str | None = None, params: dict | None = None) -> dict | list:
     headers = {"Authorization": chave.strip()} if chave else {}
     try:
-        resposta = requests.get(
-            url, headers=headers, params=params, timeout=(5, 22), allow_redirects=False
-        )
+        resposta = requests.get(url, headers=headers, params=params, timeout=(5, 22), allow_redirects=False)
     except requests.RequestException as erro:
         raise ErroCnpja("Não foi possível acessar o serviço. Verifique a rede e tente novamente.") from erro
     mensagens = {
@@ -97,7 +103,8 @@ def municipio_ibge(cidade: str, uf: str) -> int:
         raise ErroCnpja("O IBGE retornou um formato de municípios inesperado.")
     normal = _normalizar(cidade)
     encontrados = [
-        cidade_ibge for cidade_ibge in dados
+        cidade_ibge
+        for cidade_ibge in dados
         if isinstance(cidade_ibge, dict) and _normalizar(str(cidade_ibge.get("nome", ""))) == normal
     ]
     if not encontrados:
@@ -167,7 +174,8 @@ def _registro(item: dict) -> dict | None:
         "cidade": str(address.get("city") or "")[:80],
         "uf": str(address.get("state") or "").upper()[:2],
         "data_abertura": abertura[8:10] + "/" + abertura[5:7] + "/" + abertura[:4]
-        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", abertura) else "",
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", abertura)
+        else "",
         "situacao_cadastral": "Ativa",
         "origem": "cnpja",
         "observacao": f"Fonte: CNPJá Comercial; abertura {abertura}.",
