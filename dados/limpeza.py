@@ -185,8 +185,9 @@ def padronizar(registro: dict) -> tuple[dict, list[str]]:
     elif base.startswith("legitimo"):
         r["base_legal"] = "legitimo_interesse"
     else:
+        # Base de contato pendente é um status de conformidade, não erro cadastral.
+        # A empresa pode entrar na prospecção e ser analisada internamente.
         r["base_legal"] = "sem_base"
-        problemas.append("Sem consentimento nem base legal")
     r["consentimento"] = consentiu
 
     if not r["razao_social"] and not cnpj_util.valido(digitos):

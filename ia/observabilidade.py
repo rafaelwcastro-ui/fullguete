@@ -60,3 +60,15 @@ def resumo(desde: str | None = None) -> dict:
     r["custo_por_lead"] = (r["custo"] / leads) if leads else 0.0
     r["taxa_plano_b"] = (r["planos_b"] / r["chamadas"]) if r["chamadas"] else 0.0
     return r
+
+
+def falhas_lote(lote: str) -> list[dict]:
+    """Expõe causas técnicas do plano B sem tokens, payloads ou dados pessoais."""
+    with conectar() as con:
+        linhas = con.execute(
+            """SELECT COALESCE(modelo, provedor) modelo, erro, COUNT(*) ocorrencias
+               FROM eventos_ia WHERE lote=? AND erro IS NOT NULL
+               GROUP BY modelo, erro ORDER BY ocorrencias DESC, erro LIMIT 10""",
+            (lote,),
+        ).fetchall()
+    return [dict(r) for r in linhas]
