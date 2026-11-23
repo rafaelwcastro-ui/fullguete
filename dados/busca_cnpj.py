@@ -61,8 +61,7 @@ def normalizar_cidade(cidade: str) -> str:
     A API pesquisa prefixos sem remover diacríticos automaticamente.
     """
     ascii_cidade = "".join(
-        letra for letra in unicodedata.normalize("NFKD", cidade.strip())
-        if not unicodedata.combining(letra)
+        letra for letra in unicodedata.normalize("NFKD", cidade.strip()) if not unicodedata.combining(letra)
     )
     return re.sub(r"\s+", " ", ascii_cidade).upper()
 
