@@ -179,7 +179,7 @@ def qualificar_e_agendar(lead_id: int, usuario: dict, data_reuniao: str, executi
     with conectar() as con:
         lead = _lead(con, lead_id)
         if lead["etapa"] in (estados.FILA_BDR, estados.EM_ANALISE):
-            raise ValueError("Registre primeiro um contato permitido antes de qualificar.")
+            raise ValueError("Registre o primeiro contato permitido antes de qualificar.")
         if not lgpd.base_para_contato(con, lead_id) or not lead["primeiro_contato_em"]:
             raise ValueError("Reunião exige base legal documentada e primeiro contato registrado.")
         instante_reuniao = tempo.ler(data_reuniao)
