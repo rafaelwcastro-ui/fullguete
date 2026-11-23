@@ -135,20 +135,90 @@ def marcar_passo(passo_id: int, feito: bool, usuario: dict) -> None:
         con.execute("UPDATE cadencia_passos SET feito_em=? WHERE id=?", (tempo.iso() if feito else None, passo_id))
 
 
-def salvar_bant(lead_id: int, usuario: dict, valores: dict) -> None:
+def salvar_bant(
+    lead_id: int,
+    usuario: dict,
+    valores: dict,
+    confirmacoes: dict[str, bool] | None = None,
+) -> None:
+    """Salva cada critério BANT separadamente; confirmação humana é explícita.
+
+    Campos omitidos preservam o valor anterior. Campos vazios são aceitos:
+    o BDR pode completar o BANT gradualmente e corrigir informações.
+    """
     from banco.conexao import conectar
 
-    campos = {k: (valores.get(k) or "").strip() for k in BANT_CAMPOS}
+    if not valores or any(campo not in BANT_CAMPOS for campo in valores):
+        raise ValueError("Informe ao menos um critério BANT válido.")
+    if confirmacoes is not None and any(campo not in BANT_CAMPOS for campo in confirmacoes):
+        raise ValueError("Critério de confirmação BANT inválido.")
+
     with conectar() as con:
+        lead = _lead(con, lead_id)
+        if usuario.get("papel") != "gestor" and not (
+            usuario.get("papel") == "bdr" and lead["responsavel_id"] == usuario["id"]
+        ):
+            raise PermissionError("Somente o BDR responsável ou gestor pode preencher o BANT.")
+        if lead["opt_out"]:
+            raise ValueError("Este lead possui opt-out ativo.")
+        anterior = con.execute("SELECT * FROM bant WHERE lead_id=?", (lead_id,)).fetchone()
+        campos = {
+            campo: (valores.get(campo) or "").strip()[:200]
+            if campo in valores
+            else (anterior[campo] or "") if anterior else ""
+            for campo in BANT_CAMPOS
+        }
+        confirmados_antes = {
+            linha["campo"]: bool(linha["confirmado"])
+            for linha in con.execute(
+                "SELECT campo, confirmado FROM bant_validacoes WHERE lead_id=?", (lead_id,)
+            )
+        }
+        marcacoes = {}
+        for campo in BANT_CAMPOS:
+            if campo in valores or (confirmacoes is not None and campo in confirmacoes):
+                if confirmacoes is not None and campo in confirmacoes:
+                    confirmado = bool(confirmacoes[campo])
+                else:
+                    confirmado = confirmados_antes.get(campo, False) and (
+                        anterior is not None and campos[campo] == (anterior[campo] or "")
+                    )
+                if confirmado and not campos[campo]:
+                    raise ValueError(f"Preencha {BANT_CAMPOS[campo]} antes de confirmar.")
+                marcacoes[campo] = int(confirmado)
+
+        instante = tempo.iso()
         con.execute(
             "INSERT INTO bant (lead_id, orcamento, autoridade, necessidade, prazo, atualizado_em, usuario_id) "
             "VALUES (?,?,?,?,?,?,?) ON CONFLICT(lead_id) DO UPDATE SET orcamento=excluded.orcamento, "
             "autoridade=excluded.autoridade, necessidade=excluded.necessidade, prazo=excluded.prazo, "
             "atualizado_em=excluded.atualizado_em, usuario_id=excluded.usuario_id",
-            (lead_id, campos["orcamento"], campos["autoridade"], campos["necessidade"], campos["prazo"], tempo.iso(),
-             usuario["id"]),
-        )  # fmt: skip
-        repositorio.auditar(con, usuario["login"], "bant", "leads", lead_id, {k: bool(v) for k, v in campos.items()})
+            (
+                lead_id,
+                campos["orcamento"],
+                campos["autoridade"],
+                campos["necessidade"],
+                campos["prazo"],
+                instante,
+                usuario["id"],
+            ),
+        )
+        for campo, confirmado in marcacoes.items():
+            con.execute(
+                "INSERT INTO bant_validacoes (lead_id, campo, confirmado, atualizado_em, usuario_id) "
+                "VALUES (?,?,?,?,?) ON CONFLICT(lead_id,campo) DO UPDATE SET "
+                "confirmado=excluded.confirmado, atualizado_em=excluded.atualizado_em, "
+                "usuario_id=excluded.usuario_id",
+                (lead_id, campo, confirmado, instante, usuario["id"]),
+            )
+        repositorio.auditar(
+            con,
+            usuario["login"],
+            "bant_progressivo",
+            "leads",
+            lead_id,
+            {"informados": [k for k, v in campos.items() if v], "confirmados": [k for k, v in marcacoes.items() if v]},
+        )
 
 
 def corrigir_ia(lead_id: int, usuario: dict, campo: str, valor_correto: str, motivo: str) -> None:
