@@ -299,7 +299,8 @@ with aba_cnpja:
         a, b, c = st.columns([1, 1.2, 2.2])
         limite_c = a.selectbox("Por página", [1, 5, 10, 20, 50], index=2)
         ibge_c = b.text_input(
-            "Código IBGE (opcional)", max_chars=7,
+            "Código IBGE (opcional)",
+            max_chars=7,
             help="Preencher apenas se souber o código; vazio, buscamos pelo nome da cidade no IBGE.",
         )
         enviar_c = c.form_submit_button(
@@ -314,9 +315,7 @@ with aba_cnpja:
         st.session_state.pop("cnpja_filtros", None)
         try:
             codigo_c = int(ibge_c) if ibge_c.strip() else cnpja.municipio_ibge(cidade_c, uf_c)
-            parametros_c = cnpja.filtros(
-                segmento_c, uf_c, codigo_c, int(ano_c), mes_c, codigos_c, limite_c
-            )
+            parametros_c = cnpja.filtros(segmento_c, uf_c, codigo_c, int(ano_c), mes_c, codigos_c, limite_c)
             with st.spinner("Consultando a base real de estabelecimentos CNPJá..."):
                 resultado_c = cnpja.pesquisar(chave_cnpja, parametros_c)
         except (ValueError, cnpja.ErroCnpja) as erro:
@@ -383,9 +382,7 @@ with aba_cnpja:
                 registros_c = [opcoes_c[numero] for numero in escolhidos_c]
                 _mostrar_resultado(ingestao.receber(registros_c, "cnpja", ator))
 
-        if pagina_c.next_token and st.button(
-            "Carregar próxima página (consome créditos)", key="cnpja_proxima"
-        ):
+        if pagina_c.next_token and st.button("Carregar próxima página (consome créditos)", key="cnpja_proxima"):
             try:
                 with st.spinner("Consultando próxima página..."):
                     proximo_c = cnpja.pesquisar(chave_cnpja, {"token": pagina_c.next_token})
