@@ -227,6 +227,6 @@ def test_llm_valido_e_usado_e_guardado_no_cache(base_carregada, monkeypatch):
     orquestrador.tratar([lead_id], "teste", usar_llm=True)
     trat = consultas.ultimo_tratamento(lead_id)
     assert trat["motor"] == "gemini" and trat["plano_b"] == 0
-    assert trat["versao_prompt"] == "v1"
+    assert trat["versao_prompt"] == "v2"
     with conectar() as con:
         assert con.execute("SELECT COUNT(*) FROM cache_ia").fetchone()[0] == 1

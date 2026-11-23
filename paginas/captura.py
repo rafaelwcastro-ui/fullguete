@@ -7,6 +7,7 @@ import time
 import pandas as pd
 import streamlit as st
 
+from banco import prospeccao
 from dados import busca_cnpj, cnpja, cnpjws, ingestao, limpeza
 from dados import cnpj as cnpj_util
 from dados.features import INTERESSES, PORTES
@@ -282,6 +283,56 @@ with aba_cnpja:
         "Comece com 10 empresas. O filtro 'Varejo' utiliza CNAEs exemplificativos, "
         "não representa todo o varejo. Você pode informar CNAEs específicos."
     )
+    ui.rotulo("Pesquisas salvas e tags")
+    historico_c = prospeccao.listar()
+    if historico_c:
+        st.caption(
+            f"{len(historico_c)} busca(s) salva(s) nesta base. Reabra resultados já consultados sem consumir créditos."
+        )
+        rotulos_c = {
+            item["id"]: (
+                f"{item['tag']} · {item['encontrados']} encontrados · "
+                f"{item['importados']} importados · {item['retidos'] or 0} retidos"
+            )
+            for item in historico_c
+        }
+        a_h, b_h = st.columns([3, 1])
+        busca_salva_c = a_h.selectbox(
+            "Histórico de campanhas", list(rotulos_c), format_func=rotulos_c.get, key="cnpja_historico"
+        )
+        if b_h.button("Abrir pesquisa salva", key="cnpja_abrir_salva"):
+            antiga_c = prospeccao.carregar(busca_salva_c)
+            if antiga_c:
+                st.session_state["cnpja_pesquisa_id"] = antiga_c.id
+                st.session_state["cnpja_pagina"] = cnpja.Resultado(
+                    empresas=antiga_c.empresas,
+                    recebidas=len(antiga_c.empresas),
+                    rejeitadas=0,
+                    total=antiga_c.total_fonte,
+                    next_token=None,
+                )
+                st.session_state["cnpja_filtros"] = antiga_c.filtros
+                st.session_state.pop("cnpja_selecao", None)
+                st.rerun()
+        resumo_historico_c = pd.DataFrame(historico_c)[
+            ["tag", "cidade", "uf", "segmento", "criada_em", "encontrados", "importados", "retidos", "na_fila"]
+        ]
+        st.dataframe(resumo_historico_c, hide_index=True, width="stretch")
+        st.download_button(
+            "Baixar histórico CSV (backup manual)",
+            resumo_historico_c.to_csv(sep=";", index=False).encode("utf-8-sig"),
+            "fullguete_historico_pesquisas.csv",
+            "text/csv",
+            on_click="ignore",
+            key="cnpja_exportar_historico",
+        )
+    else:
+        st.caption("Ainda não há buscas salvas. A primeira consulta bem-sucedida criará uma campanha.")
+    st.caption(
+        "Armazenamento atual: SQLite da instância. Pode ser perdido quando o Streamlit Cloud "
+        "reiniciar/reimplantar o aplicativo. Persistência definitiva exige banco externo."
+    )
+
     with st.form("cnpja_pesquisa_comercial"):
         a, b, c = st.columns([1.3, 2, 0.8])
         segmento_c = a.selectbox("Segmento / tag", list(cnpja.SEGMENTOS), index=1)
@@ -303,6 +354,12 @@ with aba_cnpja:
             max_chars=7,
             help="Preencher apenas se souber o código; vazio, buscamos pelo nome da cidade no IBGE.",
         )
+        nome_tag_c = st.text_input(
+            "Tag da campanha (opcional)",
+            placeholder="Ex.: varejosp ou prospeccao-abril",
+            help="Usamos este nome com um sufixo automático para identificar cada consulta.",
+            max_chars=60,
+        )
         enviar_c = c.form_submit_button(
             "Pesquisar CNPJs na CNPJá",
             type="primary",
@@ -313,6 +370,8 @@ with aba_cnpja:
     if enviar_c:
         st.session_state.pop("cnpja_pagina", None)
         st.session_state.pop("cnpja_filtros", None)
+        st.session_state.pop("cnpja_pesquisa_id", None)
+        st.session_state.pop("cnpja_selecao", None)
         try:
             codigo_c = int(ibge_c) if ibge_c.strip() else cnpja.municipio_ibge(cidade_c, uf_c)
             parametros_c = cnpja.filtros(segmento_c, uf_c, codigo_c, int(ano_c), mes_c, codigos_c, limite_c)
@@ -321,12 +380,33 @@ with aba_cnpja:
         except (ValueError, cnpja.ErroCnpja) as erro:
             st.error(str(erro))
         else:
+            campanha_c = prospeccao.registrar(
+                "cnpja",
+                segmento_c,
+                cidade_c.strip(),
+                uf_c,
+                int(ano_c),
+                mes_c,
+                codigos_c,
+                parametros_c,
+                resultado_c.empresas,
+                resultado_c.total,
+                ator,
+                tag_preferida=nome_tag_c,
+            )
+            st.session_state["cnpja_pesquisa_id"] = campanha_c.id
             st.session_state["cnpja_pagina"] = resultado_c
             st.session_state["cnpja_filtros"] = parametros_c
+            st.success(f"Pesquisa salva com tag {campanha_c.tag}. Reabra pelo histórico sem gastar créditos.")
 
     pagina_c = st.session_state.get("cnpja_pagina")
     if pagina_c is not None:
         st.divider()
+        pesquisa_id_c = st.session_state.get("cnpja_pesquisa_id")
+        pesquisa_atual_c = prospeccao.carregar(pesquisa_id_c) if pesquisa_id_c else None
+        if pesquisa_atual_c:
+            st.markdown(f"**Campanha: {pesquisa_atual_c.tag}**")
+            st.caption("Resultados vinculados a esta campanha quando importados.")
         st.caption(
             f"Resposta da API: {pagina_c.recebidas} registro(s) recebidos, "
             f"{pagina_c.rejeitadas} rejeitado(s) por ausência de CNPJ/razão social. "
@@ -379,8 +459,15 @@ with aba_cnpja:
                 disabled=not bool(escolhidos_c),
                 key="cnpja_importar",
             ):
-                registros_c = [opcoes_c[numero] for numero in escolhidos_c]
-                _mostrar_resultado(ingestao.receber(registros_c, "cnpja", ator))
+                if pesquisa_atual_c is None:
+                    st.error("Pesquisa não encontrada no banco. Execute uma nova consulta antes de importar.")
+                else:
+                    resultado_importacao_c = prospeccao.importar(pesquisa_id_c, escolhidos_c, ator)
+                    _mostrar_resultado(resultado_importacao_c)
+                    st.info(
+                        f"Leads vinculados à campanha {pesquisa_atual_c.tag}. "
+                        "Eles podem aparecer como Capturados, Retidos LGPD ou Tratados."
+                    )
 
         if pagina_c.next_token and st.button("Carregar próxima página (consome créditos)", key="cnpja_proxima"):
             try:
@@ -395,6 +482,8 @@ with aba_cnpja:
                 proximo_c.recebidas += pagina_c.recebidas
                 proximo_c.rejeitadas += pagina_c.rejeitadas
                 st.session_state["cnpja_pagina"] = proximo_c
+                if pesquisa_atual_c:
+                    prospeccao.acrescentar(pesquisa_atual_c.id, proximo_c.empresas, proximo_c.total)
                 st.rerun()
 
 

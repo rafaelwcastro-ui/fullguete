@@ -125,7 +125,8 @@ def enriquecimento(ctx: Contexto, token: str, ficticios: set[str]) -> None:
     lead = ctx.lead
     notas = []
     real = json.loads(lead["dados_cnpjws"]) if lead.get("dados_cnpjws") else None
-    if not lead["base_ficticia"] and cnpj_util.valido(lead.get("cnpj")) and real is None:
+    precisa_complementar = not all(lead.get(campo) for campo in ("cnae", "setor", "cidade", "uf"))
+    if not lead["base_ficticia"] and cnpj_util.valido(lead.get("cnpj")) and real is None and precisa_complementar:
         try:
             registro, do_cache = cnpjws.consultar(lead["cnpj"], token, ficticios)
         except (ValueError, cnpjws.ErroCaptura) as erro:
@@ -143,14 +144,21 @@ def enriquecimento(ctx: Contexto, token: str, ficticios: set[str]) -> None:
         notas.append("Base fictícia: CNPJ não consultado na API.")
     elif real:
         notas.append("Dados reais do CNPJ.ws já presentes.")
+    elif not lead["base_ficticia"] and not precisa_complementar:
+        notas.append("Cadastro público já contém CNAE, atividade e localização; sem consulta redundante ao CNPJ.ws.")
 
     texto = features.texto_empresa(lead)
     segmento = features.detectar_segmento(lead.get("cnae", ""), texto)
     simulados = json.loads(lead.get("sinais_simulados") or "{}")
-    if not simulados:
+    if not lead["base_ficticia"]:
+        if simulados:
+            ctx.alteracoes["sinais_simulados"] = "{}"
+        simulados = {}
+        notas.append("Empresa real: sem sinais comportamentais simulados. Apenas cadastro e texto informado.")
+    elif not simulados:
         simulados = _sinais_simulados(lead, features.detectar_sinais(texto, {}), segmento)
         ctx.alteracoes["sinais_simulados"] = json.dumps(simulados, ensure_ascii=False)
-        notas.append("Sinais de mercado simulados adicionados.")
+        notas.append("Sinais fictícios de demonstração adicionados.")
     lead["sinais_simulados"] = simulados
     lead["segmento"] = segmento
     ctx.feats = features.calcular(lead)
@@ -198,6 +206,7 @@ def payload_llm(ctx: Contexto, contexto_candidatas: list[dict]) -> dict:
             "nome": lead.get("nome_fantasia") or lead["razao_social"],
             "setor": lead.get("setor") or "",
             "cnae": lead.get("cnae") or "",
+            "data_abertura": lead.get("data_abertura") or "",
             "porte": lead.get("porte") or "",
             "funcionarios": lead.get("funcionarios"),
             "descricao": lead.get("descricao") or "",
@@ -206,7 +215,11 @@ def payload_llm(ctx: Contexto, contexto_candidatas: list[dict]) -> dict:
         },
         "segmento": ctx.segmento_nome,
         "sinais": ctx.sinais_nomes,
-        "sinais_de_mercado_simulados": simulados,
+        "sinais_de_mercado_simulados": simulados if lead["base_ficticia"] else {},
+        "origem_evidencia": "ficticia" if lead["base_ficticia"] else "dados_cadastrais_publicos",
+        "limites_evidencia": (
+            "CNAE, atividade e descrição NÃO provam inadimplência, faturamento, cobrança, fraude ou venda a prazo."
+        ),
         "riscos_ja_identificados": ctx.riscos,
         "candidatas": contexto_candidatas,
     }

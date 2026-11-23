@@ -158,8 +158,8 @@ def auditoria(entidade_id: str | None = None, limite: int = 300) -> pd.DataFrame
     return _df(sql + " ORDER BY id DESC LIMIT ?", [*params, limite])
 
 
-def carteira(responsavel_id: int | None = None) -> pd.DataFrame:
-    """Leads com a última atividade de cada um. Sem responsável = todos."""
+def carteira(responsavel_id: int | None = None, incluir_sem_responsavel: bool = False) -> pd.DataFrame:
+    """Leads atribuídos, ou todos para gestor quando solicitado explicitamente."""
     sql = """SELECT l.id, l.razao_social, l.nome_fantasia, l.etapa, l.classificacao, l.nota_final, l.solucao_principal,
                     l.uf, l.cidade, l.retorno_em, l.proxima_acao, l.sla_limite, l.primeiro_contato_em, l.opt_out,
                     l.responsavel_id, l.base_ficticia, l.criado_em, u.nome responsavel,
@@ -167,8 +167,10 @@ def carteira(responsavel_id: int | None = None) -> pd.DataFrame:
              FROM leads l
              LEFT JOIN usuarios u ON u.id=l.responsavel_id
              LEFT JOIN atividades a ON a.id = (SELECT MAX(id) FROM atividades WHERE lead_id=l.id)
-             WHERE l.responsavel_id IS NOT NULL"""
+             WHERE 1=1"""
     params: list = []
+    if not incluir_sem_responsavel:
+        sql += " AND l.responsavel_id IS NOT NULL"
     if responsavel_id:
         sql += " AND l.responsavel_id=?"
         params.append(responsavel_id)

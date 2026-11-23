@@ -7,7 +7,7 @@ import streamlit as st
 import catalogo
 from banco import consultas, repositorio
 from banco.conexao import conectar
-from nucleo import comercial, estados, tempo, ui
+from nucleo import campanhas_ui, comercial, estados, tempo, ui
 
 usuario = st.session_state["usuario"]
 gestor = usuario["papel"] in ("gestor", "executivo")
@@ -21,9 +21,14 @@ ui.cabecalho(
 if msg := st.session_state.pop("carteira_msg", None):
     st.success(msg)
 
-dados = consultas.carteira(None if gestor else usuario["id"])
+dados = consultas.carteira(None if gestor else usuario["id"], incluir_sem_responsavel=gestor)
 if dados.empty:
-    st.info("Nenhum lead atribuído ainda.")
+    st.info("Nenhum lead disponível nesta carteira.")
+    st.stop()
+
+dados = campanhas_ui.aplicar(dados, "id", "carteira_campanha")
+if dados.empty:
+    st.info("A campanha selecionada ainda não tem leads nesta carteira.")
     st.stop()
 
 hoje = tempo.hoje_local().isoformat()
@@ -81,10 +86,10 @@ m2.metric(
 m3.metric("Retornos atrasados", int((vis["prazo"] == "Atrasado").sum()))
 m4.metric("Ganhos", int((vis["etapa"] == estados.GANHO).sum()))
 
-colunas = ["id", "empresa", "etapa", "classificacao", "nota_final", "solucao", "ultima_atividade", "proxima_acao",
+colunas = ["id", "empresa", "tags", "etapa", "classificacao", "nota_final", "solucao", "ultima_atividade", "proxima_acao",
            "retorno", "prazo"] + (["responsavel"] if gestor else [])  # fmt: skip
 st.dataframe(vis[colunas], hide_index=True, width="stretch", column_config={
-    "id": st.column_config.NumberColumn("#", width="small"), "empresa": "Empresa", "etapa": "Etapa",
+    "id": st.column_config.NumberColumn("#", width="small"), "empresa": "Empresa", "tags": "Campanhas", "etapa": "Etapa",
     "classificacao": "Classe", "nota_final": st.column_config.ProgressColumn("Nota", min_value=0, max_value=100, format="%.0f"),
     "solucao": "Solução", "ultima_atividade": "Última atividade", "proxima_acao": "Próxima ação", "retorno": "Retorno",
     "prazo": "Prazo", "responsavel": "Responsável",

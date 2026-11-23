@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 
 PASTA = Path(__file__).resolve().parent
-VERSAO_ATIVA = "v1"
+VERSAO_ATIVA = "v2"
 TEMPERATURA = 0.2
 
 

@@ -10,7 +10,7 @@ import catalogo
 from banco import consultas, metricas, repositorio
 from banco.conexao import conectar
 from dados.ingestao import CANAIS, ORIGENS_ROTULO
-from nucleo import componentes, config, estados, lgpd, tempo, ui
+from nucleo import campanhas_ui, componentes, config, estados, lgpd, tempo, ui
 
 usuario = st.session_state["usuario"]
 pode_editar = usuario["papel"] == "gestor"
@@ -42,7 +42,8 @@ Equifax. Decisões de crédito são do cliente, usando essas soluções.
 - **Sem segmentação territorial.** UF e município são só dados cadastrais e filtros. Não entram na nota.
 - **Base legal.** Sem consentimento ou legítimo interesse, o lead fica Retido LGPD e não recebe contato.
 - **Checagem de viés.** A distribuição de notas e de conversão por segmento e porte é acompanhada nesta página.
-- **Dados fictícios e integrações simuladas** são sempre rotulados. A única API real é a do CNPJ.ws.
+- **Dados fictícios e integrações simuladas** são sempre rotulados. CNPJá e CNPJ.ws são APIs reais;
+  os dados públicos não comprovam faturamento, inadimplência ou comportamento de crédito.
 """
     )
 
@@ -82,13 +83,16 @@ with abas[1]:
         ui.rotulo("Regularizar lead retido")
         retidos = consultas.leads([estados.RETIDO])
         retidos = retidos[retidos["opt_out"] == 0]
+        if not retidos.empty:
+            retidos = campanhas_ui.aplicar(retidos, "id", "lgpd_campanha")
+        st.caption("A regularização exige base legal documentada para contato, não apenas CNPJ público.")
         opcoes_r = {int(r.id): f"#{r.id} {r.nome_fantasia or r.razao_social}" for r in retidos.itertuples()}
         with st.form("regularizar"):
             alvo_r = st.selectbox("Lead retido", list(opcoes_r), format_func=opcoes_r.get) if opcoes_r else None
             base_legal = st.radio("Nova base legal", ["consentimento", "legitimo_interesse"], horizontal=True,
                                   format_func={"consentimento": "Consentimento", "legitimo_interesse": "Legítimo interesse"}.get)  # fmt: skip
             obs_r = st.text_input("Como foi obtida (obrigatório)", max_chars=200)
-            ok_r = st.form_submit_button("Regularizar e tratar", disabled=not opcoes_r)
+            ok_r = st.form_submit_button("Regularizar e tratar", disabled=not (opcoes_r and pode_editar))
         if ok_r and alvo_r:
             try:
                 lgpd.regularizar(alvo_r, usuario["login"], base_legal, obs_r)
