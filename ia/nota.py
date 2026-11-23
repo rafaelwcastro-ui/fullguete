@@ -68,12 +68,7 @@ def preservar_cnpj_publico(
     A nota continua como calculada: o gestor recebe um caso de revisão, não um
     falso lead qualificado. Opt-out e demais retenções permanecem independentes.
     """
-    if (
-        etapa != estados.DESCARTADO
-        or base_ficticia
-        or opt_out
-        or origem not in ("cnpja", "busca_cnpj")
-    ):
+    if etapa != estados.DESCARTADO or base_ficticia or opt_out or origem not in ("cnpja", "busca_cnpj"):
         return etapa, motivo, explicacao
     return (
         estados.REVISAO,
