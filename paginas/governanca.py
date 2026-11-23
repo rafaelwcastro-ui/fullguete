@@ -40,7 +40,7 @@ Equifax. Decisões de crédito são do cliente, usando essas soluções.
 - **Explicabilidade (XAI).** Toda nota mostra quanto veio da aderência, da propensão e da confiança, a justificativa
   em português e o caminho no grafo que levou à solução.
 - **Sem segmentação territorial.** UF e município são só dados cadastrais e filtros. Não entram na nota.
-- **Base legal.** Sem consentimento ou legítimo interesse, o lead fica Retido LGPD e não recebe contato.
+- **Qualificação e contato separados.** Ausência de base documentada para abordagem não retém o CNPJ nem impede a análise interna. Contatos exigem base legal fundamentada; opt-out continua bloqueando.
 - **Checagem de viés.** A distribuição de notas e de conversão por segmento e porte é acompanhada nesta página.
 - **Dados fictícios e integrações simuladas** são sempre rotulados. CNPJá e CNPJ.ws são APIs reais;
   os dados públicos não comprovam faturamento, inadimplência ou comportamento de crédito.
@@ -80,30 +80,53 @@ with abas[1]:
             st.rerun()
         st.caption("O opt-out tira o lead de todas as filas e bloqueia novos contatos.")
     with b:
-        ui.rotulo("Regularizar lead retido")
-        retidos = consultas.leads([estados.RETIDO])
-        retidos = retidos[retidos["opt_out"] == 0]
-        if not retidos.empty:
-            retidos = campanhas_ui.aplicar(retidos, "id", "lgpd_campanha")
-        st.caption("A regularização exige base legal documentada para contato, não apenas CNPJ público.")
-        opcoes_r = {int(r.id): f"#{r.id} {r.nome_fantasia or r.razao_social}" for r in retidos.itertuples()}
+        ui.rotulo("Documentar base legal para contato")
+        with conectar() as con:
+            pendentes_ids = {
+                int(linha["id"])
+                for linha in con.execute(
+                    """SELECT l.id FROM leads l
+                       JOIN consentimentos c ON c.id=(
+                           SELECT MAX(c2.id) FROM consentimentos c2 WHERE c2.lead_id=l.id
+                       )
+                       WHERE l.opt_out=0 AND c.base_legal='sem_base'"""
+                )
+            }
+        pendentes = consultas.leads()
+        pendentes = pendentes[pendentes["id"].isin(pendentes_ids)]
+        if not pendentes.empty:
+            pendentes = campanhas_ui.aplicar(pendentes, "id", "lgpd_campanha")
+        st.caption(
+            "O cadastro e a análise de CNPJs são realizados separadamente do contato. "
+            "Documente consentimento ou legítimo interesse fundamentado antes de uma abordagem."
+        )
+        opcoes_r = {
+            int(r.id): f"#{r.id} {r.nome_fantasia or r.razao_social} · {r.etapa}" for r in pendentes.itertuples()
+        }
         with st.form("regularizar"):
-            alvo_r = st.selectbox("Lead retido", list(opcoes_r), format_func=opcoes_r.get) if opcoes_r else None
+            alvo_r = st.selectbox("Lead pendente", list(opcoes_r), format_func=opcoes_r.get) if opcoes_r else None
             base_legal = st.radio("Nova base legal", ["consentimento", "legitimo_interesse"], horizontal=True,
                                   format_func={"consentimento": "Consentimento", "legitimo_interesse": "Legítimo interesse"}.get)  # fmt: skip
-            obs_r = st.text_input("Como foi obtida (obrigatório)", max_chars=200)
-            ok_r = st.form_submit_button("Regularizar e tratar", disabled=not (opcoes_r and pode_editar))
+            obs_r = st.text_area(
+                "Fundamentação da base legal (obrigatório)",
+                max_chars=600,
+                help="Para legítimo interesse, documente finalidade, necessidade, balanceamento e salvaguardas.",
+            )
+            ok_r = st.form_submit_button("Registrar base para contato", disabled=not (opcoes_r and pode_editar))
         if ok_r and alvo_r:
             try:
+                etapa_anterior = consultas.lead(alvo_r)["etapa"]
                 lgpd.regularizar(alvo_r, usuario["login"], base_legal, obs_r)
-                from ia import orquestrador
+                if etapa_anterior == estados.RETIDO:
+                    from ia import orquestrador
 
-                orquestrador.tratar([alvo_r], usuario["login"])
+                    orquestrador.tratar([alvo_r], usuario["login"])
             except ValueError as erro:
                 st.error(str(erro))
             else:
                 st.session_state["gov_msg"] = (
-                    f"Base legal registrada. Lead tratado de novo: {consultas.lead(alvo_r)['etapa']}."
+                    "Base legal de contato registrada. "
+                    "O lead continua no fluxo comercial, sem perder score ou histórico."
                 )
                 st.rerun()
 

@@ -11,7 +11,7 @@ import streamlit as st
 import catalogo
 from banco import consultas, repositorio
 from ia import nota
-from nucleo import auth, campanhas_ui, comercial, componentes, estados, tempo, ui
+from nucleo import auth, campanhas_ui, comercial, componentes, estados, lgpd, tempo, ui
 
 usuario = st.session_state["usuario"]
 
@@ -133,6 +133,7 @@ with lista:
     st.caption("Clique numa linha para abrir a ficha. A primeira é a mais urgente.")
 
 lead = consultas.lead(lead_id)
+status_contato = lgpd.status_contato(lead_id)
 trat = consultas.ultimo_tratamento(lead_id) or {}
 res = trat.get("resultado") or {}
 contato = consultas.contato(lead_id) or {}
@@ -152,6 +153,11 @@ with ficha:
         f"{lead['setor'] or 'Setor não informado'} · {lead['porte'] or 'porte não informado'} · "
         f"{lead['cidade'] or ''}{'/' + lead['uf'] if lead['uf'] else ''}"
     )
+    if status_contato == "pendente":
+        st.warning(
+            "Lead liberado para análise e priorização. Contato ainda pendente de base legal "
+            "documentada em Governança & LGPD. Você pode registrar notas internas e qualificar a oportunidade."
+        )
     if contato:
         st.caption(
             f"Contato: {contato.get('nome') or 'sem nome'}"
@@ -203,7 +209,7 @@ with ficha:
         ui.rotulo("Registrar atividade")
         with st.form(f"atividade_{lead_id}", clear_on_submit=True):
             a, b = st.columns(2)
-            tipo = a.selectbox("Tipo", comercial.TIPOS_ATIVIDADE)
+            tipo = a.selectbox("Tipo", comercial.TIPOS_ATIVIDADE if status_contato == "liberado" else ["Nota"])
             resultado = b.selectbox("Resultado", comercial.RESULTADOS)
             anotacao = st.text_area("Anotação", max_chars=1000, placeholder="O que foi conversado.")
             a, b = st.columns([2, 1])
@@ -279,7 +285,12 @@ with ficha:
             solucoes = st.multiselect("Soluções para a proposta", [s["id"] for s in catalogo.solucoes()],
                                       default=[s for s in sugeridas if s], format_func=catalogo.nome, placeholder="Selecione")  # fmt: skip
             obs = st.text_input("Observação para o executivo", max_chars=300)
-            qualificar = st.form_submit_button("Qualificar e agendar", type="primary", icon=":material/event:")
+            qualificar = st.form_submit_button(
+                "Qualificar e agendar",
+                type="primary",
+                icon=":material/event:",
+                disabled=status_contato != "liberado",
+            )
         if qualificar:
             try:
                 quando = tempo.iso(datetime.combine(dia, hora, tzinfo=tempo.FUSO))
