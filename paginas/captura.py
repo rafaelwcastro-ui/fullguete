@@ -277,7 +277,7 @@ with aba_busca_real:
             st.error(str(erro))
         else:
             if conta["ativa"]:
-                st.success(f'Conexão autenticada. Plano: {conta["plano"]}. Conta ativa.')
+                st.success(f"Conexão autenticada. Plano: {conta['plano']}. Conta ativa.")
             else:
                 st.warning("A chave foi reconhecida, mas a conta não consta como ativa.")
 
@@ -339,9 +339,9 @@ with aba_busca_real:
         filtros_usados = st.session_state.get("busca_real_filtros") or {}
         st.caption(
             "Filtros enviados à API: "
-            f'cidade={filtros_usados.get("cidade")}, UF={filtros_usados.get("uf")}, '
-            f'abertura={filtros_usados.get("abertura_de")} a '
-            f'{filtros_usados.get("abertura_ate")}, situação={filtros_usados.get("situacao")}.'
+            f"cidade={filtros_usados.get('cidade')}, UF={filtros_usados.get('uf')}, "
+            f"abertura={filtros_usados.get('abertura_de')} a "
+            f"{filtros_usados.get('abertura_ate')}, situação={filtros_usados.get('situacao')}."
         )
         recebidos = st.session_state.get("busca_real_total_api", 0)
         descartados = st.session_state.get("busca_real_descartados", 0)
