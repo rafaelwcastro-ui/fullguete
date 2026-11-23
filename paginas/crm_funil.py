@@ -9,7 +9,7 @@ import streamlit as st
 
 import catalogo
 from banco import consultas, repositorio
-from nucleo import campanhas_ui, comercial, crm_operacional, estados, tempo, ui
+from nucleo import campanhas_ui, comercial, crm_operacional, estados, lgpd, tempo, ui
 
 usuario = st.session_state["usuario"]
 
@@ -136,7 +136,13 @@ if lead is None:
     st.warning("Este lead não existe mais. Atualize os filtros.")
     st.stop()
 opp = consultas.oportunidade(lead_id) or {}
+status_contato = lgpd.status_contato(lead_id)
 st.markdown(f"### {lead['nome_fantasia'] or lead['razao_social']}")
+if status_contato == "pendente":
+    st.warning(
+        "Análise da oportunidade liberada. Antes de ligar ou enviar mensagens, "
+        "documente a base legal de contato em Governança & LGPD."
+    )
 tags_lead = crm_operacional.texto_valido(funil.loc[funil["id"] == lead_id, "tags"].iloc[0])
 a, b, c, d = st.columns(4)
 a.caption(f"**Etapa:** {lead['etapa']}")
@@ -182,7 +188,7 @@ with aba_atividade:
         somente_nota = lead["etapa"] in (estados.GANHO, estados.PERDIDO)
         st.caption("Registre a interação, a próxima ação e, se necessário, a data do retorno.")
         with st.form(f"crm_atividade_{lead_id}"):
-            tipos = ["Nota"] if somente_nota else comercial.TIPOS_ATIVIDADE
+            tipos = ["Nota"] if somente_nota or status_contato != "liberado" else comercial.TIPOS_ATIVIDADE
             tipo_atividade = st.selectbox("Tipo de atividade", tipos)
             resultado_atividade = st.selectbox("Resultado", ["", *comercial.RESULTADOS])
             anotacao_atividade = st.text_area("Anotações", max_chars=1500)
