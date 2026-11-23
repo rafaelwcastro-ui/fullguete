@@ -28,9 +28,18 @@ def empresa(cnpj="11222333000181", nome="Loja Exemplo"):
 
 def busca(tag=""):
     return prospeccao.registrar(
-        "cnpja", "Varejo", "Campinas", "SP", 2026, 4, "4711302",
+        "cnpja",
+        "Varejo",
+        "Campinas",
+        "SP",
+        2026,
+        4,
+        "4711302",
         {"limit": 10, "mainActivity.id.in": "4711302", "token": "SECRETO"},
-        [empresa()], 42, "gestor", tag_preferida=tag,
+        [empresa()],
+        42,
+        "gestor",
+        tag_preferida=tag,
     )
 
 
@@ -87,9 +96,7 @@ def test_nao_importa_cnpj_de_outra_busca():
 
 def test_paginacao_agrega_mais_empresas_sem_apagar_antigas():
     a = busca()
-    restante = prospeccao.acrescentar(
-        a.id, [empresa("66285492000117", "Supermercado")], 42
-    )
+    restante = prospeccao.acrescentar(a.id, [empresa("66285492000117", "Supermercado")], 42)
     assert restante is not None
     assert len(restante.empresas) == 2
     assert prospeccao.carregar(a.id).total_fonte == 42
