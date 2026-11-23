@@ -119,7 +119,14 @@ def receber(registros: list[dict], canal: str, ator: str, ficticio: bool = False
             )  # fmt: skip
             bruto_id = cur.lastrowid
             reg, problemas = limpeza.padronizar(bruto)
-            for extra in ("sinais_simulados", "situacao_cadastral", "dados_cnpjws", "opt_out", "observacao", "data_abertura"):
+            for extra in (
+                "sinais_simulados",
+                "situacao_cadastral",
+                "dados_cnpjws",
+                "opt_out",
+                "observacao",
+                "data_abertura",
+            ):
                 if extra in bruto:
                     reg[extra] = bruto[extra]
             nome = reg["razao_social"] or reg["cnpj"]
