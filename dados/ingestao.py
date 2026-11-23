@@ -241,9 +241,7 @@ def entrada_recente(limite: int = 30) -> list[dict]:
     for r in linhas:
         payload_nome = r["razao_social"] or ""
         status = "Rejeitado" if r["status_bruto"] == "Rejeitado" else STATUS_POR_ETAPA.get(r["etapa"], "Tratado")
-        problemas = [
-            p for p in json.loads(r["problemas"] or "[]") if p != "Sem consentimento nem base legal"
-        ]
+        problemas = [p for p in json.loads(r["problemas"] or "[]") if p != "Sem consentimento nem base legal"]
         if r["lead_id"] is None:
             contato_status = "Não cadastrado"
         elif r["opt_out"]:
