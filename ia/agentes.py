@@ -206,6 +206,7 @@ def payload_llm(ctx: Contexto, contexto_candidatas: list[dict]) -> dict:
             "nome": lead.get("nome_fantasia") or lead["razao_social"],
             "setor": lead.get("setor") or "",
             "cnae": lead.get("cnae") or "",
+            "data_abertura": lead.get("data_abertura") or "",
             "porte": lead.get("porte") or "",
             "funcionarios": lead.get("funcionarios"),
             "descricao": lead.get("descricao") or "",
