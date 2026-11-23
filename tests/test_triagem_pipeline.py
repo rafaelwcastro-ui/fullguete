@@ -18,17 +18,19 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def importar_real(cnpj="11222333000181") -> int:
     return ingestao.receber(
-        [{
-            "cnpj": cnpj,
-            "razao_social": "MERCEARIA CAMPINAS LTDA",
-            "nome_fantasia": "Mercearia Campinas",
-            "cnae": "4712100",
-            "setor": "Comércio varejista de alimentos",
-            "cidade": "Campinas",
-            "uf": "SP",
-            "data_abertura": "14/04/2026",
-            "base_legal": "sem_base",
-        }],
+        [
+            {
+                "cnpj": cnpj,
+                "razao_social": "MERCEARIA CAMPINAS LTDA",
+                "nome_fantasia": "Mercearia Campinas",
+                "cnae": "4712100",
+                "setor": "Comércio varejista de alimentos",
+                "cidade": "Campinas",
+                "uf": "SP",
+                "data_abertura": "14/04/2026",
+                "base_legal": "sem_base",
+            }
+        ],
         "cnpja",
         "teste",
     ).criados[0]
@@ -116,9 +118,7 @@ def test_consulta_carteira_inclui_cnpj_real_e_situacao(base_carregada):
 def test_pagina_fila_exibe_cnpj_que_a_ia_mandou_para_nutricao(base_carregada):
     lead_id, gestor = preparar_para_triagem(base_carregada)
     app = AppTest.from_file(str(ROOT / "paginas" / "fila_bdr.py"), default_timeout=30)
-    app.session_state["usuario"] = {
-        k: gestor[k] for k in ("id", "login", "nome", "papel")
-    }
+    app.session_state["usuario"] = {k: gestor[k] for k in ("id", "login", "nome", "papel")}
     app.run()
     assert not app.exception, [str(x.message) for x in app.exception]
     assert any("CNPJs capturados" in str(x.value) for x in app.markdown)
@@ -128,9 +128,7 @@ def test_pagina_fila_exibe_cnpj_que_a_ia_mandou_para_nutricao(base_carregada):
 def test_carteira_seleciona_empresa_e_tem_acao_de_encaminhamento(base_carregada):
     lead_id, gestor = preparar_para_triagem(base_carregada)
     app = AppTest.from_file(str(ROOT / "paginas" / "carteira.py"), default_timeout=30)
-    app.session_state["usuario"] = {
-        k: gestor[k] for k in ("id", "login", "nome", "papel")
-    }
+    app.session_state["usuario"] = {k: gestor[k] for k in ("id", "login", "nome", "papel")}
     app.run()
     assert not app.exception, [str(x.message) for x in app.exception]
     assert any("Enviar este lead para a fila" in x.label for x in app.button)
