@@ -270,6 +270,17 @@ with aba_busca_real:
         )
     chave = chave_configurada or st.session_state.get("busca_real_chave", "")
 
+    if st.button("Verificar conexão com a API", disabled=not bool(chave), icon=":material/check_circle:"):
+        try:
+            conta = busca_cnpj.verificar_conexao(chave)
+        except busca_cnpj.ErroBusca as erro:
+            st.error(str(erro))
+        else:
+            if conta["ativa"]:
+                st.success(f"Conexão autenticada. Plano: {conta['plano']}. Conta ativa.")
+            else:
+                st.warning("A chave foi reconhecida, mas a conta não consta como ativa.")
+
     with st.form("buscar_cnpjs_reais"):
         st.markdown("**Filtros da prospecção**")
         a, b, c = st.columns([1.5, 2, 0.8])
@@ -297,6 +308,15 @@ with aba_busca_real:
     st.write("Filtros:", segmento, f"{cidade}/{uf}", f"Abertura: {busca_cnpj.MESES[mes - 1]}/{ano}")
 
     if buscar_real:
+        for estado in (
+            "busca_real_resultados",
+            "busca_real_cursor",
+            "busca_real_mais",
+            "busca_real_filtros",
+            "busca_real_total_api",
+            "busca_real_descartados",
+        ):
+            st.session_state.pop(estado, None)
         try:
             filtros = busca_cnpj.parametros(segmento, cidade, uf, int(ano), mes, cnae, limite=limite)
             with st.spinner("Consultando registros reais de CNPJ..."):
@@ -309,15 +329,37 @@ with aba_busca_real:
             st.session_state["busca_real_cursor"] = pagina.next_cursor
             st.session_state["busca_real_mais"] = pagina.has_more
             st.session_state["busca_real_snapshot"] = pagina.snapshot
+            st.session_state["busca_real_total_api"] = pagina.total_api
+            st.session_state["busca_real_descartados"] = pagina.descartados
             st.session_state.pop("busca_real_selecionados", None)
 
     registros_reais = st.session_state.get("busca_real_resultados")
     if registros_reais is not None:
         st.divider()
+        filtros_usados = st.session_state.get("busca_real_filtros") or {}
+        st.caption(
+            "Filtros enviados à API: "
+            f"cidade={filtros_usados.get('cidade')}, UF={filtros_usados.get('uf')}, "
+            f"abertura={filtros_usados.get('abertura_de')} a "
+            f"{filtros_usados.get('abertura_ate')}, situação={filtros_usados.get('situacao')}."
+        )
+        recebidos = st.session_state.get("busca_real_total_api", 0)
+        descartados = st.session_state.get("busca_real_descartados", 0)
         if not registros_reais:
-            st.warning("Nenhuma empresa encontrada nesta consulta. Revise os filtros.")
+            if recebidos:
+                st.error(
+                    f"A API devolveu {recebidos} registro(s), mas nenhum tinha CNPJ e razão social "
+                    "no formato esperado. O problema é a interpretação dos dados, não seus filtros."
+                )
+            else:
+                st.warning(
+                    "A API respondeu com sucesso, mas não encontrou empresas para os filtros enviados. "
+                    "Experimente outro mês ou CNAE; os nomes de cidade agora são normalizados sem acentos."
+                )
         else:
             st.success(f"{len(registros_reais)} empresas reais carregadas nesta pesquisa.")
+            if descartados:
+                st.warning(f"{descartados} registro(s) da API foram ignorados por dados cadastrais incompletos.")
             snapshot = st.session_state.get("busca_real_snapshot") or "não informado"
             st.caption(
                 f"Base do provedor: {snapshot}. Quantidade exibida é parcial quando há mais páginas. "
@@ -410,6 +452,8 @@ with aba_busca_real:
                 st.session_state["busca_real_cursor"] = proxima.next_cursor
                 st.session_state["busca_real_mais"] = proxima.has_more
                 st.session_state["busca_real_snapshot"] = proxima.snapshot
+                st.session_state["busca_real_total_api"] += proxima.total_api
+                st.session_state["busca_real_descartados"] += proxima.descartados
                 st.session_state.pop("busca_real_selecionados", None)
                 st.rerun()
 
