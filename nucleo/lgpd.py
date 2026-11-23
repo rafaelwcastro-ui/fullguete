@@ -34,11 +34,7 @@ def base_para_contato(con, lead_id: int) -> bool:
         "SELECT base_legal, opt_out_em FROM consentimentos WHERE lead_id=? ORDER BY id DESC LIMIT 1",
         (lead_id,),
     ).fetchone()
-    return bool(
-        ultimo
-        and ultimo["base_legal"] in ("consentimento", "legitimo_interesse")
-        and not ultimo["opt_out_em"]
-    )
+    return bool(ultimo and ultimo["base_legal"] in ("consentimento", "legitimo_interesse") and not ultimo["opt_out_em"])
 
 
 def status_contato(lead_id: int) -> str:
