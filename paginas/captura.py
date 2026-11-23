@@ -72,8 +72,12 @@ if msg := st.session_state.pop("captura_msg", None):
 
 aba_form, aba_planilha, aba_cnpj, aba_busca_real, aba_site, aba_base = st.tabs(
     [
-        "Formulário manual", "Planilha", "CNPJs conhecidos",
-        "Buscar CNPJs reais", "Site / webhook (simulado)", "Base fictícia",
+        "Formulário manual",
+        "Planilha",
+        "CNPJs conhecidos",
+        "Buscar CNPJs reais",
+        "Site / webhook (simulado)",
+        "Base fictícia",
     ]
 )
 
@@ -257,9 +261,7 @@ with aba_busca_real:
             "Cadastre sua chave no provedor e informe-a abaixo. "
             "O plano Free possui limites de uso."
         )
-        st.markdown(
-            "[Documentação e cadastro da API LocalizaCNPJ](https://api.localizacnpj.com.br/)"
-        )
+        st.markdown("[Documentação e cadastro da API LocalizaCNPJ](https://api.localizacnpj.com.br/)")
         st.text_input(
             "Chave de API gratuita",
             type="password",
@@ -286,16 +288,17 @@ with aba_busca_real:
         a, b = st.columns([1.2, 2])
         limite = a.selectbox("Resultados por página", [10, 25, 50, 100], index=1)
         buscar_real = b.form_submit_button(
-            "Buscar empresas reais", type="primary", icon=":material/search:",
-            disabled=not bool(chave), width="stretch",
+            "Buscar empresas reais",
+            type="primary",
+            icon=":material/search:",
+            disabled=not bool(chave),
+            width="stretch",
         )
     st.write("Filtros:", segmento, f"{cidade}/{uf}", f"Abertura: {busca_cnpj.MESES[mes - 1]}/{ano}")
 
     if buscar_real:
         try:
-            filtros = busca_cnpj.parametros(
-                segmento, cidade, uf, int(ano), mes, cnae, limite=limite
-            )
+            filtros = busca_cnpj.parametros(segmento, cidade, uf, int(ano), mes, cnae, limite=limite)
             with st.spinner("Consultando registros reais de CNPJ..."):
                 pagina = busca_cnpj.buscar(chave, filtros)
         except (ValueError, busca_cnpj.ErroBusca) as erro:
@@ -322,15 +325,29 @@ with aba_busca_real:
             )
             tabela = pd.DataFrame(registros_reais)
             colunas = [
-                "cnpj", "razao_social", "nome_fantasia", "cidade", "uf",
-                "cnae", "setor", "data_abertura", "porte",
+                "cnpj",
+                "razao_social",
+                "nome_fantasia",
+                "cidade",
+                "uf",
+                "cnae",
+                "setor",
+                "data_abertura",
+                "porte",
             ]
-            tabela = tabela[colunas].rename(columns={
-                "cnpj": "CNPJ", "razao_social": "Razão social",
-                "nome_fantasia": "Fantasia", "cidade": "Cidade", "uf": "UF",
-                "cnae": "CNAE", "setor": "Atividade", "data_abertura": "Abertura",
-                "porte": "Porte",
-            })
+            tabela = tabela[colunas].rename(
+                columns={
+                    "cnpj": "CNPJ",
+                    "razao_social": "Razão social",
+                    "nome_fantasia": "Fantasia",
+                    "cidade": "Cidade",
+                    "uf": "UF",
+                    "cnae": "CNAE",
+                    "setor": "Atividade",
+                    "data_abertura": "Abertura",
+                    "porte": "Porte",
+                }
+            )
             st.dataframe(tabela, width="stretch", hide_index=True)
             st.download_button(
                 "Exportar resultados CSV",
@@ -344,11 +361,10 @@ with aba_busca_real:
             st.markdown("**Importar resultados para a captura de leads**")
             por_cnpj = {r["cnpj"]: r for r in registros_reais}
             selecionar = st.multiselect(
-                "Empresas que deseja importar", list(por_cnpj),
+                "Empresas que deseja importar",
+                list(por_cnpj),
                 default=list(por_cnpj),
-                format_func=lambda numero: (
-                    f'{por_cnpj[numero]["razao_social"]} · {numero}'
-                ),
+                format_func=lambda numero: f"{por_cnpj[numero]['razao_social']} · {numero}",
             )
             st.warning(
                 "Dados cadastrais públicos não significam consentimento para contato. "
@@ -361,7 +377,8 @@ with aba_busca_real:
             )
             if st.button(
                 f"Importar {len(selecionar)} empresas selecionadas",
-                type="primary", disabled=not bool(selecionar),
+                type="primary",
+                disabled=not bool(selecionar),
                 icon=":material/add_business:",
             ):
                 registros = []
