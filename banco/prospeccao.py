@@ -261,5 +261,5 @@ def com_tags(df: pd.DataFrame, coluna: str = "id") -> pd.DataFrame:
         return df.assign(tags=pd.Series(dtype=str))
     saida = df.copy()
     etiquetas = etiquetas_por_lead([int(x) for x in saida[coluna].tolist()])
-    saida["tags"] = saida[coluna].map(etiquetas).fillna("")
+    saida["tags"] = saida[coluna].map(etiquetas).astype("string").fillna("")
     return saida

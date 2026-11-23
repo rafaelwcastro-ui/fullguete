@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import streamlit as st
 
-import catalogo
 from banco import consultas, repositorio
 from banco.conexao import conectar
-from nucleo import campanhas_ui, comercial, estados, tempo, ui
+from nucleo import campanhas_ui, comercial, crm_operacional, estados, tempo, ui
 
 usuario = st.session_state["usuario"]
 gestor = usuario["papel"] in ("gestor", "executivo")
@@ -33,7 +32,7 @@ if dados.empty:
 
 hoje = tempo.hoje_local().isoformat()
 dados["empresa"] = dados["nome_fantasia"].fillna(dados["razao_social"])
-dados["solucao"] = dados["solucao_principal"].map(lambda s: catalogo.nome(s) if s else "")
+dados["solucao"] = dados["solucao_principal"].map(crm_operacional.nome_solucao)
 dados["ultima_atividade"] = [
     f"{tempo.fmt(q, com_hora=False)} · {t} · {r or ''}" if isinstance(q, str) else ""
     for q, t, r in zip(dados["ultima_atividade_em"], dados["ultima_atividade_tipo"], dados["ultima_atividade_resultado"],
@@ -56,7 +55,7 @@ busca = a.text_input("Buscar empresa", placeholder="Nome ou razão social", max_
 etapas = b.multiselect("Etapa", [e for e in estados.ESTADOS if e in set(dados["etapa"])], placeholder="Todas")
 prazo = c.selectbox("Prazo de retorno", ["Todos", "Atrasado", "Hoje", "Próximos", "Sem data"])
 a, b, c = st.columns([1.6, 1.4, 1])
-solucao = a.selectbox("Solução", ["Todas", *sorted(s for s in dados["solucao"].unique() if s)])
+solucao = a.selectbox("Solução", ["Todas", *crm_operacional.opcoes_solucoes(dados["solucao"])])
 responsaveis = (
     b.multiselect("Responsável", sorted(dados["responsavel"].dropna().unique()), placeholder="Todas") if gestor else []
 )
@@ -65,8 +64,9 @@ ufs = c.multiselect("UF (filtro)", sorted(dados["uf"].dropna().unique()), placeh
 vis = dados
 if busca:
     termo = busca.casefold()
-    vis = vis[vis["empresa"].str.casefold().str.contains(termo, regex=False)
-              | vis["razao_social"].str.casefold().str.contains(termo, regex=False)]  # fmt: skip
+    vis = vis[vis["empresa"].fillna("").str.casefold().str.contains(termo, regex=False)
+              | vis["razao_social"].fillna("").str.casefold().str.contains(termo, regex=False)
+              | vis["cnpj"].fillna("").str.contains(busca, regex=False)]  # fmt: skip
 if etapas:
     vis = vis[vis["etapa"].isin(etapas)]
 if prazo != "Todos":
@@ -100,6 +100,9 @@ if gestor:
     ui.rotulo("Redistribuir leads")
     bdrs = repositorio.usuarios("bdr")
     ativos = vis[vis["etapa"].isin([*comercial.ETAPAS_ATIVAS_BDR, estados.REUNIAO, estados.PROPOSTA, estados.NUTRICAO])]
+    if not bdrs:
+        st.info("Nenhum BDR ativo cadastrado para redistribuição.")
+        st.stop()
     with st.form("redistribuir"):
         opcoes = {int(r.id): f"#{r.id} {r.empresa} · {r.responsavel}" for r in ativos.itertuples()}
         escolhidos = st.multiselect("Leads", list(opcoes), format_func=opcoes.get, placeholder="Selecione")
