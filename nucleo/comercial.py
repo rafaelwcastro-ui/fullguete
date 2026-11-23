@@ -16,7 +16,7 @@ CADENCIA_PADRAO = [
     (5, "Ligação", "Segunda ligação com as perguntas de descoberta"),
     (8, "E-mail", "E-mail de encerramento da cadência"),
 ]
-ETAPAS_ATIVAS_BDR = (estados.FILA_BDR, estados.EM_CONTATO, estados.QUALIFICADO)
+ETAPAS_ATIVAS_BDR = (estados.FILA_BDR, estados.EM_ANALISE, estados.EM_CONTATO, estados.QUALIFICADO)
 
 
 def escolher_bdr(con: sqlite3.Connection) -> int | None:
@@ -109,7 +109,7 @@ def registrar_atividade(lead_id: int, usuario: dict, tipo: str, resultado: str, 
             ).fetchone()
             if passo:
                 con.execute("UPDATE cadencia_passos SET feito_em=? WHERE id=?", (momento, passo["id"]))
-            if etapa == estados.FILA_BDR:
+            if etapa in (estados.FILA_BDR, estados.EM_ANALISE):
                 estados.mudar(con, lead_id, estados.EM_CONTATO, usuario["login"], detalhe=f"{tipo}: {resultado}")
                 etapa = estados.EM_CONTATO
         repositorio.auditar(
@@ -173,8 +173,8 @@ def qualificar_e_agendar(lead_id: int, usuario: dict, data_reuniao: str, executi
 
     with conectar() as con:
         lead = _lead(con, lead_id)
-        if lead["etapa"] == estados.FILA_BDR:
-            raise ValueError("Registre o primeiro contato antes de qualificar.")
+        if lead["etapa"] in (estados.FILA_BDR, estados.EM_ANALISE):
+            raise ValueError("Registre primeiro um contato permitido antes de qualificar.")
         if lead["etapa"] not in (estados.EM_CONTATO, estados.QUALIFICADO):
             raise ValueError(f"O lead está em {lead['etapa']} e não pode ser qualificado agora.")
         bant = con.execute("SELECT necessidade FROM bant WHERE lead_id=?", (lead_id,)).fetchone()
