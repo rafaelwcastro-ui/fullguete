@@ -314,12 +314,17 @@ with aba_cnpja:
                 st.session_state["cnpja_filtros"] = antiga_c.filtros
                 st.session_state.pop("cnpja_selecao", None)
                 st.rerun()
-        st.dataframe(
-            pd.DataFrame(historico_c)[
-                ["tag", "cidade", "uf", "segmento", "criada_em", "encontrados", "importados", "retidos", "na_fila"]
-            ],
-            hide_index=True,
-            width="stretch",
+        resumo_historico_c = pd.DataFrame(historico_c)[
+            ["tag", "cidade", "uf", "segmento", "criada_em", "encontrados", "importados", "retidos", "na_fila"]
+        ]
+        st.dataframe(resumo_historico_c, hide_index=True, width="stretch")
+        st.download_button(
+            "Baixar histórico CSV (backup manual)",
+            resumo_historico_c.to_csv(sep=";", index=False).encode("utf-8-sig"),
+            "fullguete_historico_pesquisas.csv",
+            "text/csv",
+            on_click="ignore",
+            key="cnpja_exportar_historico",
         )
     else:
         st.caption("Ainda não há buscas salvas. A primeira consulta bem-sucedida criará uma campanha.")
