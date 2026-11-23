@@ -11,7 +11,7 @@ import streamlit as st
 import catalogo
 from banco import consultas, repositorio
 from ia import nota
-from nucleo import auth, campanhas_ui, comercial, componentes, estados, lgpd, tempo, ui
+from nucleo import auth, campanhas_ui, comercial, componentes, crm_operacional, estados, lgpd, tempo, triagem, ui
 
 usuario = st.session_state["usuario"]
 
@@ -24,25 +24,111 @@ ui.cabecalho(
 if msg := st.session_state.pop("fila_msg", None):
     st.success(msg)
 
+# ---------- rastreabilidade: todos os CNPJs reais, não apenas os da fila ----------
+if usuario["papel"] in ("gestor", "executivo"):
+    cadastrados = consultas.leads()
+    reais = cadastrados[
+        (cadastrados["base_ficticia"] == 0) & cadastrados["origem"].isin(("cnpja", "busca_cnpj"))
+    ].copy()
+    st.markdown("#### Onde estão os CNPJs capturados?")
+    if reais.empty:
+        st.caption("Nenhum CNPJ importado das pesquisas está nesta base de dados.")
+    else:
+        reais = campanhas_ui.aplicar(reais, "id", "fila_campanha_cnpjs")
+        a, b, c, d = st.columns(4)
+        a.metric("CNPJs importados", len(reais))
+        b.metric("Na fila BDR", int((reais["etapa"] == estados.FILA_BDR).sum()))
+        c.metric("Revisão / nutrição", int(reais["etapa"].isin((estados.REVISAO, estados.NUTRICAO)).sum()))
+        d.metric("Sem BDR", int(reais["responsavel_id"].isna().sum()))
+        reais["diagnostico"] = [triagem.situacao_operacional(r.etapa, r.responsavel) for r in reais.itertuples()]
+        with st.expander("Localizar CNPJs por destino da IA e encaminhar para um BDR", expanded=True):
+            pesquisa = st.text_input("Buscar empresa ou CNPJ importado", key="fila_busca_reais")
+            fora_da_fila = st.checkbox("Mostrar só os que não chegaram à fila", value=True)
+            pendentes = reais
+            if fora_da_fila:
+                pendentes = pendentes[~pendentes["etapa"].isin(comercial.ETAPAS_ATIVAS_BDR)]
+            if pesquisa.strip():
+                termo = pesquisa.strip().casefold()
+                pendentes = pendentes[
+                    pendentes["razao_social"].fillna("").str.casefold().str.contains(termo, regex=False)
+                    | pendentes["cnpj"].fillna("").str.contains(pesquisa.strip(), regex=False)
+                ]
+            st.dataframe(
+                pendentes[["id", "cnpj", "razao_social", "etapa", "diagnostico", "nota_final", "responsavel"]],
+                hide_index=True,
+                width="stretch",
+                column_config={
+                    "id": st.column_config.NumberColumn("#"),
+                    "cnpj": "CNPJ",
+                    "razao_social": "Empresa",
+                    "etapa": "Destino",
+                    "diagnostico": "Por que não está no BDR",
+                    "nota_final": "Nota IA",
+                    "responsavel": "BDR atribuído",
+                },
+            )
+            if usuario["papel"] == "gestor":
+                elegiveis = pendentes[pendentes["etapa"].isin(triagem.ENCAMINHAVEIS) & (pendentes["opt_out"] == 0)]
+                disponiveis = repositorio.usuarios("bdr")
+                if not elegiveis.empty and disponiveis:
+                    with st.form("fila_encaminhamento_cnpja"):
+                        alvos = {int(r.id): f"#{r.id} {r.razao_social} · {r.etapa}" for r in elegiveis.itertuples()}
+                        escolhidos = st.multiselect("Selecionar leads tratados", list(alvos), format_func=alvos.get)
+                        nomes = {x["id"]: x["nome"] for x in disponiveis}
+                        bdr_destino = st.selectbox("Encaminhar ao BDR", list(nomes), format_func=nomes.get)
+                        justificativa = st.text_area(
+                            "Justificativa da triagem manual",
+                            max_chars=500,
+                            placeholder="Por que a oportunidade merece avaliação comercial?",
+                        )
+                        enviar = st.form_submit_button("Enviar selecionados à fila", type="primary")
+                    if enviar:
+                        try:
+                            n = triagem.encaminhar(escolhidos, usuario, bdr_destino, justificativa)
+                        except (ValueError, PermissionError, estados.TransicaoInvalida) as erro:
+                            st.error(str(erro))
+                        else:
+                            st.session_state["fila_msg"] = f"{n} empresa(s) encaminhadas à fila do BDR."
+                            st.rerun()
+                else:
+                    st.caption(
+                        "Nenhum lead tratado encaminhável neste filtro, ou não há BDR ativo. "
+                        "Capturados precisam de IA; descartados precisam ser reprocessados."
+                    )
+        st.caption(
+            "Destino da IA não é validade do CNPJ. Revisão e nutrição permanecem consultáveis; "
+            "envio à fila por decisão humana exige justificativa e não libera contato sem base legal."
+        )
+    st.divider()
+
 bdrs = repositorio.usuarios("bdr")
 if usuario["papel"] == "bdr":
     dono = usuario
 else:
     if not bdrs:
-        st.info("Nenhum BDR cadastrado.")
+        st.info("Nenhum BDR ativo cadastrado. As pesquisas e os destinos da IA aparecem acima.")
         st.stop()
     por_id = {b["id"]: b for b in bdrs}
-    escolhido = st.selectbox("Ver a fila de", list(por_id), format_func=lambda i: por_id[i]["nome"])
-    dono = por_id[escolhido]
+    rotulos = {None: "Todos os BDRs / não atribuídos"}
+    rotulos.update({b["id"]: b["nome"] for b in bdrs})
+    escolhido = st.selectbox("Ver a fila de", list(rotulos), format_func=rotulos.get)
+    dono = por_id.get(escolhido) if escolhido is not None else None
     st.caption(
-        f"Você está vendo a fila como {auth.PAPEIS[usuario['papel']].lower()}. As ações ficam registradas no seu nome."
+        f"Visão de {auth.PAPEIS[usuario['papel']].lower()}; "
+        "os registros e as ações ficam identificados pelo usuário logado."
     )
 
 # ---------- metas do dia ----------
 hoje = tempo.hoje_local()
 inicio_dia = tempo.iso(datetime.combine(hoje, time.min, tzinfo=tempo.FUSO))
 inicio_semana = tempo.iso(datetime.combine(hoje - timedelta(days=hoje.weekday()), time.min, tzinfo=tempo.FUSO))
-metas = consultas.metas_do_dia(dono["id"], inicio_dia, inicio_semana, tempo.iso(), hoje.isoformat())
+if dono is not None:
+    metas = consultas.metas_do_dia(dono["id"], inicio_dia, inicio_semana, tempo.iso(), hoje.isoformat())
+else:
+    metricas = [
+        consultas.metas_do_dia(bdr["id"], inicio_dia, inicio_semana, tempo.iso(), hoje.isoformat()) for bdr in bdrs
+    ]
+    metas = {k: sum(m[k] for m in metricas) for k in ("contatos", "meta", "retornos", "atrasados", "reunioes_semana")}
 a, b, c, d = st.columns(4)
 a.metric("Contatos hoje", f"{metas['contatos']} / {metas['meta']}")
 b.metric("Retornos de hoje", metas["retornos"])
@@ -50,12 +136,15 @@ c.metric("Atrasados", metas["atrasados"])
 d.metric("Reuniões na semana", metas["reunioes_semana"])
 
 # ---------- fila priorizada ----------
-carteira = consultas.carteira(dono["id"])
+carteira = consultas.carteira(
+    dono["id"] if dono is not None else None,
+    incluir_sem_responsavel=dono is None,
+)
 fila = carteira[carteira["etapa"].isin(comercial.ETAPAS_ATIVAS_BDR) & (carteira["opt_out"] == 0)].copy()
 if fila.empty:
     st.info(
-        "Fila vazia. Os leads importados podem estar em Capturado, Retido LGPD, "
-        "Revisão ou Nutrição. Confira a aba Todos os leads no Tratamento IA."
+        "Nenhum lead está na fila de trabalho selecionada. Confira acima o painel "
+        "'Onde estão os CNPJs capturados?' e os destinos da IA."
     )
     st.stop()
 
@@ -77,7 +166,7 @@ fila["retorno_hoje"] = fila["retorno_em"].fillna("").str[:10] == hoje_txt
 fila["urgencia"] = fila["atrasado"].astype(int) * 2 + fila["retorno_hoje"].astype(int)
 fila = fila.sort_values(["urgencia", "nota_final"], ascending=[False, False])
 fila["empresa"] = fila["nome_fantasia"].fillna(fila["razao_social"])
-fila["solucao"] = fila["solucao_principal"].map(catalogo.nome)
+fila["solucao"] = fila["solucao_principal"].map(crm_operacional.nome_solucao)
 
 
 def _sla(r) -> str:
@@ -97,7 +186,7 @@ fila["prazo"] = [_sla(r) for r in fila.itertuples()]
 
 f1, f2, f3 = st.columns([2, 1.3, 1])
 filtro = f1.segmented_control("Filtro", ["Todos", "Quentes", "Retorno hoje", "Atrasados"], default="Todos")
-solucao = f2.selectbox("Solução", ["Todas", *sorted(fila["solucao"].dropna().unique())])
+solucao = f2.selectbox("Solução", ["Todas", *crm_operacional.opcoes_solucoes(fila["solucao"])])
 ufs = f3.multiselect("UF (filtro)", sorted(fila["uf"].dropna().unique()), placeholder="Todas")
 vis = fila
 if filtro == "Quentes":
