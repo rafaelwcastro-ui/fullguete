@@ -50,9 +50,7 @@ def _prazo(v) -> str:
 
 
 dados["prazo"] = dados["retorno_em"].map(_prazo)
-dados["situacao"] = [
-    triagem.situacao_operacional(r.etapa, r.responsavel) for r in dados.itertuples()
-]
+dados["situacao"] = [triagem.situacao_operacional(r.etapa, r.responsavel) for r in dados.itertuples()]
 
 a, b, c = st.columns([1.6, 1.4, 1])
 busca = a.text_input("Buscar empresa", placeholder="Nome, razão social ou CNPJ", max_chars=80)
@@ -95,8 +93,18 @@ if vis.empty:
     st.stop()
 
 colunas = [
-    "id", "empresa", "cnpj", "tags", "etapa", "situacao", "classificacao", "nota_final",
-    "solucao", "responsavel", "proxima_acao", "prazo",
+    "id",
+    "empresa",
+    "cnpj",
+    "tags",
+    "etapa",
+    "situacao",
+    "classificacao",
+    "nota_final",
+    "solucao",
+    "responsavel",
+    "proxima_acao",
+    "prazo",
 ]
 ui.rotulo("Leads da carteira · clique numa linha para trabalhar")
 selecao = st.dataframe(
@@ -146,9 +154,7 @@ else:
 
 if pode_encaminhar:
     bdrs_triagem = repositorio.usuarios("bdr")
-    elegivel = (
-        lead["etapa"] in triagem.ENCAMINHAVEIS and not lead["opt_out"] and bool(trat)
-    )
+    elegivel = lead["etapa"] in triagem.ENCAMINHAVEIS and not lead["opt_out"] and bool(trat)
     st.markdown("**Encaminhamento manual para a fila do BDR**")
     if not elegivel:
         st.caption("Esta etapa não permite envio direto. Finalize a IA ou a revisão aplicável.")
@@ -158,7 +164,9 @@ if pode_encaminhar:
         with st.form(f"carteira_encaminhar_{selecionado_id}"):
             nomes_bdr = {x["id"]: x["nome"] for x in bdrs_triagem}
             destino_fila = st.selectbox(
-                "BDR responsável", list(nomes_bdr), format_func=nomes_bdr.get,
+                "BDR responsável",
+                list(nomes_bdr),
+                format_func=nomes_bdr.get,
             )
             justificativa = st.text_area(
                 "Justificativa da decisão comercial",
@@ -169,7 +177,10 @@ if pode_encaminhar:
         if enviar_fila:
             try:
                 total = triagem.encaminhar(
-                    [selecionado_id], usuario, destino_fila, justificativa,
+                    [selecionado_id],
+                    usuario,
+                    destino_fila,
+                    justificativa,
                 )
             except (ValueError, PermissionError, estados.TransicaoInvalida) as erro:
                 st.error(str(erro))
@@ -188,7 +199,12 @@ with st.expander("Registrar nota de acompanhamento", expanded=False):
         if salvar_nota:
             try:
                 comercial.registrar_atividade(
-                    selecionado_id, usuario, "Nota", "", anotacao, proxima,
+                    selecionado_id,
+                    usuario,
+                    "Nota",
+                    "",
+                    anotacao,
+                    proxima,
                 )
             except ValueError as erro:
                 st.error(str(erro))
