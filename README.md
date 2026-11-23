@@ -33,6 +33,26 @@ uma fila priorizada com roteiro de abordagem. O BDR decide; o resultado do funil
 Documentação para a entrega: [Arquitetura](docs/ARQUITETURA.md) · [Estratégia de IA](docs/ESTRATEGIA_IA.md) ·
 [Governança](docs/GOVERNANCA.md) · [Roteiro da demonstração](docs/ROTEIRO_DEMO.md).
 
+## Busca de CNPJs reais por tags
+
+Acesse **Captura de leads → Buscar CNPJs reais**. Configure a chave gratuita da LocalizaCNPJ
+em `LOCALIZA_CNPJ_TOKEN` (Secrets do Streamlit ou `.env`) ou digite-a no formulário durante a sessão.
+
+Exemplo: segmento **Varejo**, cidade **Campinas**, UF **SP**, abertura **Abril/2026**.
+O filtro de segmento é traduzido em atividade econômica da Receita; para máxima precisão, informe
+o código CNAE de 7 dígitos. A consulta aplica os filtros de abertura no servidor, suporta
+paginação por cursor e exporta apenas dados cadastrais empresariais em CSV.
+
+A interface permite selecionar resultados e importá-los, com deduplicação de CNPJ. Como dados
+cadastrais públicos não equivalem a consentimento, o padrão é `sem_base`: avalie
+a base legal em Governança antes de contato. O portal não grava sócios nem dados
+pessoais de contato retornados pelo fornecedor. **Sem chave configurada, a pesquisa
+não retorna dados**: não há substituição silenciosa por base fictícia.
+
+Fonte técnica: <https://api.localizacnpj.com.br/>. O serviço externo exige cadastro e
+possui cota mensal, que pode mudar conforme o provedor. Sem acesso a uma chave válida
+não é possível garantir, neste repositório, que um filtro terá resultados reais.
+
 ## Como rodar localmente
 
 Requer Python 3.11 ou mais novo.
