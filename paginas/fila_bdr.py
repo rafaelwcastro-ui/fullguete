@@ -286,9 +286,7 @@ with ficha:
         "Ações do BDR atualizam o status e ficam auditadas. "
         "Agendar uma tarefa não simula ligação nem avança indevidamente o CRM."
     )
-    pode_gerir = usuario["papel"] == "gestor" or (
-        usuario["papel"] == "bdr" and lead["responsavel_id"] == usuario["id"]
-    )
+    pode_gerir = usuario["papel"] == "gestor" or (usuario["papel"] == "bdr" and lead["responsavel_id"] == usuario["id"])
     with st.expander("Alterar status / decisão do BDR", expanded=True):
         opcoes_status = gestao_leads.opcoes(lead["etapa"])
         if not pode_gerir:
