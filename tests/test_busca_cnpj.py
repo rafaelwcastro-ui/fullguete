@@ -53,8 +53,10 @@ def test_consulta_real_mockada_e_paginacao(monkeypatch):
 
         def json(self):
             return {
-                "resultados": [_empresa()], "has_more": True,
-                "next_cursor": "proxima-pagina", "snapshot": "2026-11",
+                "resultados": [_empresa()],
+                "has_more": True,
+                "next_cursor": "proxima-pagina",
+                "snapshot": "2026-11",
             }
 
     def get(url, *, headers, params, timeout, allow_redirects):
