@@ -32,6 +32,8 @@ def situacao_operacional(etapa: str, responsavel: str | None = None) -> str:
         return "Tratado, mas ainda sem encaminhamento"
     if etapa == estados.FILA_BDR:
         return f"Na fila de {responsavel}" if responsavel else "Na fila, porém sem BDR atribuído"
+    if etapa == estados.EM_ANALISE:
+        return f"Em análise pelo BDR {responsavel}" if responsavel else "Em análise BDR sem responsável"
     return f"Etapa do funil: {etapa}"
 
 
