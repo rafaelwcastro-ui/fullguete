@@ -100,7 +100,7 @@ def test_migracao_resgata_apenas_bloqueio_antigo_sem_optout(base_carregada):
                     '{"bloqueio":"Sem base legal válida para contato."}',
                 ),
             )
-    sql = (Path(__file__).resolve().parent.parent / "banco" / "migracoes" / "004_separar_analise_contato.sql")
+    sql = Path(__file__).resolve().parent.parent / "banco" / "migracoes" / "004_separar_analise_contato.sql"
     with conectar() as con:
         con.executescript(sql.read_text(encoding="utf-8"))
     assert consultas.lead(disponivel)["etapa"] == estados.CAPTURADO
