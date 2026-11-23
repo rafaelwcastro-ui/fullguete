@@ -50,9 +50,7 @@ def encaminhar(lead_ids: list[int], usuario: dict, bdr_id: int, motivo: str) -> 
     motivo = motivo.strip()[:500]
     sla_horas = repositorio.config("sla_horas") or {}
     with conectar() as con:
-        bdr = con.execute(
-            "SELECT id FROM usuarios WHERE id=? AND papel='bdr' AND ativo=1", (bdr_id,)
-        ).fetchone()
+        bdr = con.execute("SELECT id FROM usuarios WHERE id=? AND papel='bdr' AND ativo=1", (bdr_id,)).fetchone()
         if bdr is None:
             raise ValueError("Selecione um BDR ativo.")
         registros = []
@@ -79,7 +77,10 @@ def encaminhar(lead_ids: list[int], usuario: dict, bdr_id: int, motivo: str) -> 
             ident = lead["id"]
             if lead["etapa"] != estados.FILA_BDR:
                 estados.mudar(
-                    con, ident, estados.FILA_BDR, usuario["login"],
+                    con,
+                    ident,
+                    estados.FILA_BDR,
+                    usuario["login"],
                     detalhe=f"Triagem comercial manual: {motivo}",
                 )
             comercial.atribuir(con, ident, bdr_id, usuario["login"], f"Triagem manual: {motivo}")
@@ -91,7 +92,11 @@ def encaminhar(lead_ids: list[int], usuario: dict, bdr_id: int, motivo: str) -> 
             if lgpd.base_para_contato(con, ident):
                 comercial.criar_cadencia(con, ident)
             repositorio.auditar(
-                con, usuario["login"], "encaminhamento_manual", "leads", ident,
+                con,
+                usuario["login"],
+                "encaminhamento_manual",
+                "leads",
+                ident,
                 {
                     "etapa_anterior": lead["etapa"],
                     "classificacao_ia_preservada": lead["classificacao"],
