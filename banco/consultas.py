@@ -160,8 +160,9 @@ def auditoria(entidade_id: str | None = None, limite: int = 300) -> pd.DataFrame
 
 def carteira(responsavel_id: int | None = None, incluir_sem_responsavel: bool = False) -> pd.DataFrame:
     """Leads atribuídos, ou todos para gestor quando solicitado explicitamente."""
-    sql = """SELECT l.id, l.razao_social, l.nome_fantasia, l.etapa, l.classificacao, l.nota_final, l.solucao_principal,
-                    l.uf, l.cidade, l.retorno_em, l.proxima_acao, l.sla_limite, l.primeiro_contato_em, l.opt_out,
+    sql = """SELECT l.id, l.cnpj, l.razao_social, l.nome_fantasia, l.etapa, l.classificacao, l.nota_final,
+                    l.solucao_principal, l.origem, l.data_abertura, l.uf, l.cidade, l.retorno_em,
+                    l.proxima_acao, l.sla_limite, l.primeiro_contato_em, l.opt_out,
                     l.responsavel_id, l.base_ficticia, l.criado_em, u.nome responsavel,
                     a.registrada_em ultima_atividade_em, a.tipo ultima_atividade_tipo, a.resultado ultima_atividade_resultado
              FROM leads l
