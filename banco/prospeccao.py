@@ -34,16 +34,12 @@ class Busca:
 
 
 def _slug(valor: str) -> str:
-    sem_acentos = "".join(
-        c for c in unicodedata.normalize("NFKD", valor.lower()) if not unicodedata.combining(c)
-    )
+    sem_acentos = "".join(c for c in unicodedata.normalize("NFKD", valor.lower()) if not unicodedata.combining(c))
     return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", sem_acentos)).strip("-")[:64]
 
 
 def _tag(con, segmento: str, cidade: str, ano: int, mes: int, personalizada: str = "") -> str:
-    base = _slug(personalizada) if personalizada.strip() else _slug(
-        f"{segmento}-{cidade}-{ano:04d}{mes:02d}"
-    )
+    base = _slug(personalizada) if personalizada.strip() else _slug(f"{segmento}-{cidade}-{ano:04d}{mes:02d}")
     base = base or f"busca-{ano:04d}{mes:02d}"
     indice = 1
     while True:
@@ -56,8 +52,18 @@ def _tag(con, segmento: str, cidade: str, ano: int, mes: int, personalizada: str
 def _sanitizar(registros: list[dict]) -> list[dict]:
     """Whitelist de atributos públicos B2B; guarda apenas o necessário para reabrir a pesquisa."""
     campos = (
-        "cnpj", "razao_social", "nome_fantasia", "cidade", "uf", "cnae", "setor",
-        "porte", "descricao", "data_abertura", "situacao_cadastral", "origem",
+        "cnpj",
+        "razao_social",
+        "nome_fantasia",
+        "cidade",
+        "uf",
+        "cnae",
+        "setor",
+        "porte",
+        "descricao",
+        "data_abertura",
+        "situacao_cadastral",
+        "origem",
     )
     empresas = {}
     for original in registros:
@@ -90,7 +96,11 @@ def registrar(
     normalizadas = _sanitizar(empresas)
     agora = tempo.iso()
     # Somente os critérios de pesquisa são mantidos. Tokens de paginação são eliminados.
-    filtros_salvos = {k: v for k, v in filtros.items() if k not in ("token", "cursor")}
+    permitidos = {
+        "limit", "address.state.in", "address.municipality.in", "status.id.in",
+        "founded.gte", "founded.lte", "mainActivity.id.in",
+    }
+    filtros_salvos = {k: v for k, v in filtros.items() if k in permitidos}
     with conectar() as con:
         tag = _tag(con, segmento, cidade, ano, mes, tag_preferida)
         cur = con.execute(
@@ -99,16 +109,36 @@ def registrar(
                 resultados_json, total_fonte, criada_em, atualizada_em, criada_por)
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
-                tag, provedor, segmento, cidade, uf, ano, mes, cnaes,
+                tag,
+                provedor,
+                segmento,
+                cidade,
+                uf,
+                ano,
+                mes,
+                cnaes,
                 json.dumps(filtros_salvos, ensure_ascii=False),
                 json.dumps(normalizadas, ensure_ascii=False),
-                int(total_fonte), agora, agora, ator,
+                int(total_fonte),
+                agora,
+                agora,
+                ator,
             ),
         )
         identificador = int(cur.lastrowid)
     return Busca(
-        identificador, tag, provedor, segmento, cidade, uf, ano, mes,
-        cnaes, filtros_salvos, normalizadas, int(total_fonte),
+        identificador,
+        tag,
+        provedor,
+        segmento,
+        cidade,
+        uf,
+        ano,
+        mes,
+        cnaes,
+        filtros_salvos,
+        normalizadas,
+        int(total_fonte),
     )
 
 
@@ -118,9 +148,18 @@ def carregar(busca_id: int) -> Busca | None:
         if r is None:
             return None
         return Busca(
-            r["id"], r["tag"], r["provedor"], r["segmento"], r["cidade"],
-            r["uf"], r["ano"], r["mes"], r["cnaes"],
-            json.loads(r["filtros_json"]), json.loads(r["resultados_json"]), r["total_fonte"],
+            r["id"],
+            r["tag"],
+            r["provedor"],
+            r["segmento"],
+            r["cidade"],
+            r["uf"],
+            r["ano"],
+            r["mes"],
+            r["cnaes"],
+            json.loads(r["filtros_json"]),
+            json.loads(r["resultados_json"]),
+            r["total_fonte"],
         )
 
 
@@ -188,10 +227,7 @@ def listar(limite: int = 200) -> list[dict]:
 
 def ids_leads(busca_id: int) -> set[int]:
     with conectar() as con:
-        return {
-            int(r[0])
-            for r in con.execute("SELECT lead_id FROM buscas_leads WHERE busca_id=?", (busca_id,))
-        }
+        return {int(r[0]) for r in con.execute("SELECT lead_id FROM buscas_leads WHERE busca_id=?", (busca_id,))}
 
 
 def etiquetas_por_lead(lead_ids: list[int]) -> dict[int, str]:
