@@ -7,7 +7,7 @@ import time
 import pandas as pd
 import streamlit as st
 
-from dados import busca_cnpj, cnpjws, ingestao, limpeza
+from dados import busca_cnpj, cnpja, cnpjws, ingestao, limpeza
 from dados import cnpj as cnpj_util
 from dados.features import INTERESSES, PORTES
 from nucleo import config, ui
@@ -70,12 +70,13 @@ st.toggle(
 if msg := st.session_state.pop("captura_msg", None):
     st.success(msg)
 
-aba_form, aba_planilha, aba_cnpj, aba_busca_real, aba_site, aba_base = st.tabs(
+aba_form, aba_planilha, aba_cnpj, aba_cnpja, aba_busca_real, aba_site, aba_base = st.tabs(
     [
         "Formulário manual",
         "Planilha",
         "CNPJs conhecidos",
-        "Buscar CNPJs reais",
+        "Buscar empresas (CNPJá)",
+        "LocalizaCNPJ (legado)",
         "Site / webhook (simulado)",
         "Base fictícia",
     ]
@@ -243,6 +244,162 @@ with aba_cnpj:
                 st.caption("Copie os CNPJs para a lista acima para capturar.")
         if not token:
             st.caption("Configure CNPJ_WS_TOKEN no .env para liberar a busca.")
+
+# ---------- CNPJá Comercial: pesquisa de empresas por filtros ----------
+with aba_cnpja:
+    st.markdown("#### Descobrir empresas reais — CNPJá Comercial")
+    st.caption(
+        "Pesquisa real de CNPJs por município IBGE, CNAE e abertura, "
+        "com verificação de saldo e importação seletiva. Não usa a LocalizaCNPJ."
+    )
+    chave_salva = config.token_cnpja()
+    if chave_salva:
+        st.success("Chave CNPJá configurada nos Secrets do servidor.")
+    else:
+        st.text_input(
+            "Chave da API CNPJá Comercial",
+            type="password",
+            key="cnpja_chave_sessao",
+            help="A chave não fica gravada nos leads nem no repositório. Use a API Comercial, não a API Pública.",
+        )
+    chave_cnpja = chave_salva or st.session_state.get("cnpja_chave_sessao", "")
+    if st.button(
+        "Validar chave e consultar saldo (grátis)",
+        key="cnpja_validar",
+        disabled=not bool(chave_cnpja),
+        icon=":material/key:",
+    ):
+        try:
+            saldo = cnpja.saldo(chave_cnpja)
+        except cnpja.ErroCnpja as erro:
+            st.error(str(erro))
+        else:
+            st.success("Chave reconhecida pela CNPJá (HTTP 200).")
+            st.caption(f"Créditos mensais: {saldo['transient']} · Acumulados: {saldo['perpetual']}")
+
+    st.info(
+        "A busca comercial consome 1 crédito a cada 10 registros retornados. "
+        "Comece com 10 empresas. O filtro 'Varejo' utiliza CNAEs exemplificativos, "
+        "não representa todo o varejo. Você pode informar CNAEs específicos."
+    )
+    with st.form("cnpja_pesquisa_comercial"):
+        a, b, c = st.columns([1.3, 2, 0.8])
+        segmento_c = a.selectbox("Segmento / tag", list(cnpja.SEGMENTOS), index=1)
+        cidade_c = b.text_input("Cidade", value="Campinas", max_chars=100)
+        uf_c = c.selectbox("UF", sorted(limpeza.UFS), index=sorted(limpeza.UFS).index("SP"))
+        a, b, c = st.columns([1, 1, 1.5])
+        mes_c = a.selectbox(
+            "Mês de abertura",
+            list(range(1, 13)),
+            index=3,
+            format_func=lambda m: cnpja.MESES[m - 1],
+        )
+        ano_c = b.number_input("Ano de abertura", min_value=2000, max_value=2100, value=2026)
+        codigos_c = c.text_input("CNAE(s), opcional", placeholder="Ex.: 4711302,4781400", max_chars=110)
+        a, b, c = st.columns([1, 1.2, 2.2])
+        limite_c = a.selectbox("Por página", [1, 5, 10, 20, 50], index=2)
+        ibge_c = b.text_input(
+            "Código IBGE (opcional)", max_chars=7,
+            help="Preencher apenas se souber o código; vazio, buscamos pelo nome da cidade no IBGE.",
+        )
+        enviar_c = c.form_submit_button(
+            "Pesquisar CNPJs na CNPJá",
+            type="primary",
+            disabled=not bool(chave_cnpja),
+            width="stretch",
+            icon=":material/search:",
+        )
+    if enviar_c:
+        st.session_state.pop("cnpja_pagina", None)
+        st.session_state.pop("cnpja_filtros", None)
+        try:
+            codigo_c = int(ibge_c) if ibge_c.strip() else cnpja.municipio_ibge(cidade_c, uf_c)
+            parametros_c = cnpja.filtros(
+                segmento_c, uf_c, codigo_c, int(ano_c), mes_c, codigos_c, limite_c
+            )
+            with st.spinner("Consultando a base real de estabelecimentos CNPJá..."):
+                resultado_c = cnpja.pesquisar(chave_cnpja, parametros_c)
+        except (ValueError, cnpja.ErroCnpja) as erro:
+            st.error(str(erro))
+        else:
+            st.session_state["cnpja_pagina"] = resultado_c
+            st.session_state["cnpja_filtros"] = parametros_c
+
+    pagina_c = st.session_state.get("cnpja_pagina")
+    if pagina_c is not None:
+        st.divider()
+        st.caption(
+            f"Resposta da API: {pagina_c.recebidas} registro(s) recebidos, "
+            f"{pagina_c.rejeitadas} rejeitado(s) por ausência de CNPJ/razão social. "
+            f"Total informado pela fonte: {pagina_c.total}."
+        )
+        if not pagina_c.empresas:
+            st.warning(
+                "A consulta retornou zero empresas aproveitáveis. "
+                "Confira o período, o CNAE e o código IBGE do município."
+            )
+        else:
+            dados_c = pd.DataFrame(pagina_c.empresas)
+            colunas_c = [
+                "cnpj",
+                "razao_social",
+                "nome_fantasia",
+                "cidade",
+                "uf",
+                "cnae",
+                "setor",
+                "data_abertura",
+            ]
+            st.dataframe(
+                dados_c[colunas_c],
+                hide_index=True,
+                width="stretch",
+            )
+            st.download_button(
+                "Exportar CSV",
+                dados_c[colunas_c].to_csv(sep=";", index=False).encode("utf-8-sig"),
+                "cnpja_empresas_reais.csv",
+                "text/csv",
+                on_click="ignore",
+                icon=":material/download:",
+            )
+            opcoes_c = {empresa["cnpj"]: empresa for empresa in pagina_c.empresas}
+            escolhidos_c = st.multiselect(
+                "Importar para o Fullguete",
+                list(opcoes_c),
+                default=list(opcoes_c),
+                format_func=lambda n: f"{opcoes_c[n]['razao_social']} — {n}",
+                key="cnpja_selecao",
+            )
+            st.warning(
+                "CNPJ público não constitui consentimento para contato. "
+                "Os novos registros entram sem base legal de contato até análise."
+            )
+            if st.button(
+                f"Importar {len(escolhidos_c)} empresa(s)",
+                disabled=not bool(escolhidos_c),
+                key="cnpja_importar",
+            ):
+                registros_c = [opcoes_c[numero] for numero in escolhidos_c]
+                _mostrar_resultado(ingestao.receber(registros_c, "cnpja", ator))
+
+        if pagina_c.next_token and st.button(
+            "Carregar próxima página (consome créditos)", key="cnpja_proxima"
+        ):
+            try:
+                with st.spinner("Consultando próxima página..."):
+                    proximo_c = cnpja.pesquisar(chave_cnpja, {"token": pagina_c.next_token})
+            except cnpja.ErroCnpja as erro:
+                st.error(str(erro))
+            else:
+                existentes_c = {item["cnpj"]: item for item in pagina_c.empresas}
+                existentes_c.update({item["cnpj"]: item for item in proximo_c.empresas})
+                proximo_c.empresas = list(existentes_c.values())
+                proximo_c.recebidas += pagina_c.recebidas
+                proximo_c.rejeitadas += pagina_c.rejeitadas
+                st.session_state["cnpja_pagina"] = proximo_c
+                st.rerun()
+
 
 # ---------- descoberta de CNPJs reais por filtros ----------
 with aba_busca_real:
