@@ -178,8 +178,10 @@ def risco(ctx: Contexto) -> None:
     lead, consent = ctx.lead, ctx.consentimento or {}
     if lead.get("opt_out") or consent.get("opt_out_em"):
         ctx.bloqueio = (estados.RETIDO, "O titular pediu opt-out. Sem contato até regularizar.")
-    elif consent.get("base_legal", "sem_base") == "sem_base":
-        ctx.bloqueio = (estados.RETIDO, "Sem base legal válida para contato.")
+    # A ausência de base legal para contato NÃO interrompe o tratamento cadastral:
+    # qualificação interna e autorização de abordagem são decisões diferentes.
+    # Opt-out explícito continua bloqueando o processamento comercial.
+    contato_pendente = consent.get("base_legal", "sem_base") == "sem_base"
     situacao = features.normalizar(lead.get("situacao_cadastral") or "ativa")
     if situacao not in ("ativa", ""):
         ctx.riscos.append(f"Empresa com situação cadastral {lead['situacao_cadastral']}")
@@ -192,7 +194,12 @@ def risco(ctx: Contexto) -> None:
     elif ctx.riscos:
         ctx.registrar("risco", "alerta", "Vai para revisão humana: " + "; ".join(ctx.riscos) + ".", ms())
     else:
-        ctx.registrar("risco", "ok", "Base legal válida, sem opt-out, empresa ativa.", ms())
+        detalhe = (
+            "Análise interna permitida; contato comercial pendente de base legal documentada."
+            if contato_pendente
+            else "Sem opt-out, empresa ativa; base legal de contato registrada."
+        )
+        ctx.registrar("risco", "ok", detalhe, ms())
 
 
 # ---------- 4 a 6: payload enviado ao LLM ----------
