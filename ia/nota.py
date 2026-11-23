@@ -50,3 +50,38 @@ def destino(classificacao: str, confianca: float, confianca_minima: float = 0.6,
             return estados.FILA_BDR, None, f"{classificacao} com confiança {confianca:.2f}: vai para o BDR."
         return estados.REVISAO, None, f"{classificacao} com confiança baixa ({confianca:.2f}): revisão humana."
     return estados.NUTRICAO, None, "Frio: entra em nutrição até mostrar mais sinais."
+
+
+def preservar_cnpj_publico(
+    etapa: str,
+    motivo: str | None,
+    explicacao: str,
+    *,
+    origem: str,
+    base_ficticia: bool,
+    opt_out: bool,
+    nota_final: float,
+    motor: str,
+) -> tuple[str, str | None, str]:
+    """Não descarta automaticamente CNPJ público por score fraco ou falta de evidência.
+
+    A nota continua como calculada: o gestor recebe um caso de revisão, não um
+    falso lead qualificado. Opt-out e demais retenções permanecem independentes.
+    """
+    if (
+        etapa != estados.DESCARTADO
+        or base_ficticia
+        or opt_out
+        or origem not in ("cnpja", "busca_cnpj")
+    ):
+        return etapa, motivo, explicacao
+    return (
+        estados.REVISAO,
+        None,
+        (
+            f"CNPJ cadastral real: nota {nota_final:.0f}, motor {motor}. "
+            "A ausência de sinais comerciais ou a divergência com o ICP não comprova "
+            "falta de potencial. Revisão humana necessária antes de descartar ou "
+            "encaminhar ao BDR; nota e classificação originais preservadas."
+        ),
+    )
