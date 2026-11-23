@@ -13,7 +13,7 @@ uma fila priorizada com roteiro de abordagem. O BDR decide; o resultado do funil
 
 > O Fullguete não toma decisão de crédito: ele prioriza prospects comerciais. Projeto acadêmico, sem vínculo com a
 > Equifax. Não existe API da Equifax neste projeto: dados que dependeriam dela são simulados e rotulados como tal.
-> A única API real é a do CNPJ.ws.
+> APIs cadastrais reais: CNPJ.ws para consultas por CNPJ conhecido e LocalizaCNPJ para pesquisa segmentada, quando há chave Free configurada. Nenhum dado Equifax é consultado por API.
 
 ## O que tem dentro
 
