@@ -15,6 +15,7 @@ import requests
 
 URL = "https://api.localizacnpj.com.br/busca/filtros"
 URL_CONTA = "https://api.localizacnpj.com.br/auth/me"
+URL_SAUDE = "https://api.localizacnpj.com.br/health"
 SEGMENTOS = {
     "Varejo": "VAREJISTA",
     "Atacado": "ATACADISTA",
@@ -43,6 +44,10 @@ PORTES = {"01": "ME", "03": "EPP"}
 
 class ErroBusca(RuntimeError):
     """Erro esperado da API, seguro para apresentação no portal."""
+
+    def __init__(self, mensagem: str, status_code: int | None = None):
+        super().__init__(mensagem)
+        self.status_code = status_code
 
 
 @dataclass
@@ -92,6 +97,32 @@ def verificar_conexao(token: str) -> dict:
     if not isinstance(dados, dict):
         raise ErroBusca("A autenticação retornou um formato inválido.")
     return {"plano": str(dados.get("plan") or "não informado"), "ativa": dados.get("active") is True}
+
+
+def verificar_saude() -> dict:
+    """Consulta pública, com limite de duas chamadas por hora/IP do fornecedor."""
+    try:
+        resposta = requests.get(URL_SAUDE, timeout=(5, 12), allow_redirects=False)
+    except requests.RequestException:
+        return {"http": None, "db_ready": None, "aviso": "Não foi possível alcançar o Health Check."}
+    if resposta.status_code == 429:
+        return {"http": 429, "db_ready": None, "aviso": "Health Check limitado a 2 consultas/hora por IP."}
+    if resposta.status_code != 200:
+        return {"http": resposta.status_code, "db_ready": None, "aviso": "Health Check indisponível."}
+    try:
+        dados = resposta.json()
+    except ValueError:
+        return {"http": 200, "db_ready": None, "aviso": "Health Check retornou resposta inválida."}
+    if not isinstance(dados, dict):
+        return {"http": 200, "db_ready": None, "aviso": "Health Check retornou resposta inválida."}
+    return {"http": 200, "db_ready": dados.get("db_ready") is True, "aviso": ""}
+
+
+def filtros_diagnostico(cidade: str, uf: str, ano: int, mes: int) -> dict:
+    """Consulta mínima de baixa cardinalidade, apenas um dia e CNAE."""
+    filtros = parametros("Todos", cidade, uf, ano, mes, cnae="4711302", limite=1)
+    filtros["abertura_ate"] = filtros["abertura_de"]
+    return filtros
 
 
 def parametros(
@@ -193,10 +224,10 @@ def buscar(token: str, filtros: dict) -> PaginaEmpresas:
         403: "Esta conta não tem acesso à busca por filtros.",
         409: "A base de empresas foi atualizada. Refaça a consulta desde a primeira página.",
         429: "Cota ou limite de requisições atingido. Confira o consumo da chave.",
-        503: "O provedor está indisponível ou a consulta é muito ampla. Refine os filtros.",
+        503: "HTTP 503: a LocalizaCNPJ não concluiu a busca em até 8 segundos ou seu índice está indisponível. Consulte o diagnóstico técnico para diferenciar as causas.",
     }
     if resposta.status_code != 200:
-        raise ErroBusca(erros.get(resposta.status_code, f"Erro do provedor (HTTP {resposta.status_code})."))
+        raise ErroBusca(erros.get(resposta.status_code, f"Erro do provedor (HTTP {resposta.status_code})."), status_code=resposta.status_code)
     try:
         dados = resposta.json()
     except ValueError as erro:
