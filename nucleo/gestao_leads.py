@@ -63,16 +63,18 @@ def mudar_status(
             if not bant or not (bant["necessidade"] or "").strip():
                 raise ValueError("Preencha a Necessidade no BANT antes de qualificar.")
     if para == estados.EM_CONTATO:
-        return comercial.registrar_atividade(
-            lead_id, usuario, canal_contato, resultado_contato, justificativa
-        )
+        return comercial.registrar_atividade(lead_id, usuario, canal_contato, resultado_contato, justificativa)
     if para == estados.PERDIDO:
         comercial.fechar(lead_id, usuario, ganho=False, motivo=motivo, detalhe=justificativa)
         return para
     with conectar() as con:
         estados.mudar(con, lead_id, para, usuario["login"], motivo=motivo, detalhe=justificativa)
         repositorio.auditar(
-            con, usuario["login"], "interferencia_manual_bdr", "leads", lead_id,
+            con,
+            usuario["login"],
+            "interferencia_manual_bdr",
+            "leads",
+            lead_id,
             {"destino": para, "justificativa": justificativa, "motivo": motivo},
         )
     return para
