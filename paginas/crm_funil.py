@@ -9,7 +9,7 @@ import streamlit as st
 
 import catalogo
 from banco import consultas, repositorio
-from nucleo import campanhas_ui, comercial, crm_operacional, estados, lgpd, tempo, triagem, ui
+from nucleo import agenda_ui, campanhas_ui, comercial, crm_operacional, estados, lgpd, tempo, triagem, ui
 
 usuario = st.session_state["usuario"]
 
@@ -20,6 +20,9 @@ ui.cabecalho(
 )
 if msg := st.session_state.pop("crm_msg", None):
     st.success(msg)
+
+# Agenda operacional no topo, inclusive quando o Kanban estiver vazio.
+agenda_ui.painel(usuario, prefixo="crm")
 
 # ---------- pré-funil: CNPJs reais que ainda não chegaram ao CRM ----------
 cadastro_real = consultas.leads()

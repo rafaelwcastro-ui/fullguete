@@ -131,6 +131,10 @@ selecao = st.dataframe(
 )
 linhas = selecao.selection.rows if selecao and selecao.selection else []
 selecionado_id = int(vis.iloc[linhas[0] if linhas else 0]["id"])
+if not linhas:
+    agenda_alvo = st.session_state.pop("carteira_abrir_id", None)
+    if agenda_alvo in set(vis["id"]):
+        selecionado_id = int(agenda_alvo)
 lead = consultas.lead(selecionado_id)
 trat = consultas.ultimo_tratamento(selecionado_id)
 situacao = triagem.situacao_operacional(lead["etapa"], lead.get("responsavel"))

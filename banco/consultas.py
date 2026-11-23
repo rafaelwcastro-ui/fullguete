@@ -185,7 +185,7 @@ def metas_do_dia(usuario_id: int, inicio_dia: str, inicio_semana: str, agora: st
             "('Ligação','E-mail','WhatsApp','Reunião')", (usuario_id, inicio_dia),
         ).fetchone()[0]  # fmt: skip
         meta = con.execute("SELECT meta_contatos_dia FROM usuarios WHERE id=?", (usuario_id,)).fetchone()
-        ativos = "('Na fila do BDR','Em contato','Qualificado')"
+        ativos = "('Na fila do BDR','Em análise BDR','Em contato','Qualificado')"
         retornos = con.execute(
             f"SELECT COUNT(*) FROM leads WHERE responsavel_id=? AND etapa IN {ativos} AND substr(retorno_em,1,10)=?",
             (usuario_id, hoje),
