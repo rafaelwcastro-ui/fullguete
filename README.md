@@ -59,6 +59,7 @@ modelos de texto. Testes e estilo:
 | `GEMINI_API_KEY` | Chave do Google Gemini. Sem ela, modo local | vazia |
 | `GEMINI_MODEL` | Modelo do Gemini (leve por padrão) | `gemini-3.1-flash-lite` |
 | `CNPJ_WS_TOKEN` | Token comercial do CNPJ.ws. Sem ele, API pública (3 consultas por minuto) | vazio |
+| `LOCALIZA_CNPJ_TOKEN` | Chave gratuita da LocalizaCNPJ para descobrir CNPJs por atividade, cidade e mês de abertura | vazio |
 | `FULLGUETE_DB_PATH` | Caminho do banco SQLite | `data/fullguete_v2.db` |
 | `FULLGUETE_MODO` | `simulado` (logins de demonstração e base fictícia) ou `real` | `simulado` |
 | `FULLGUETE_LOGINS_DEMO` | Botões de login dos perfis fictícios: `sim`, `nao` ou `auto` (some se houver usuários nos Secrets) | `auto` |
