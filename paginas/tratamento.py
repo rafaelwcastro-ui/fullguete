@@ -11,7 +11,7 @@ import catalogo
 import prompts
 from banco import consultas, repositorio
 from dados.features import PORTES
-from ia import nota, orquestrador, provedor
+from ia import nota, observabilidade, orquestrador, provedor
 from nucleo import campanhas_ui, componentes, estados, revisao, ui
 
 usuario = st.session_state["usuario"]
@@ -81,6 +81,23 @@ with aba_lote:
     )
     if not tem_llm:
         st.info("Sem chave de IA: o tratamento usa a análise local (TF-IDF, regras e grafo), com o mesmo formato.")
+    else:
+        st.caption(
+            "Chave configurada não garante que o Gemini responda: use o teste para "
+            "diagnosticar permissões, cota e modelo sem enviar dados de empresas."
+        )
+        if st.button("Testar conexão Gemini (sem dados de CNPJs)", key="gemini_teste_saude"):
+            try:
+                provedor.chamar(
+                    "Responda com a palavra OK.",
+                    "Teste de saúde sem dados de clientes. Responda OK.",
+                    max_tokens=512,
+                    agente="teste_conexao",
+                )
+            except provedor.ErroIA as erro:
+                st.error(f"Falha real no Gemini: {erro}")
+            else:
+                st.success(f"Gemini respondeu ao teste de saúde. Modelo: {provedor.modelo()}.")
 
     with st.form("tratar"):
         alvo = st.radio("O que tratar", ["Todos os capturados", "Escolher leads", "Reprocessar leads já tratados"],
@@ -107,7 +124,26 @@ with aba_lote:
             destinos = "; ".join(f"{d}: {n}" for d, n in resumo["destinos"].items())
             st.success(f"{resumo['total']} lead(s) tratados em {resumo['tempo_s']} s. {destinos}.")
             if resumo.get("planos_b"):
-                st.warning(f"{resumo['planos_b']} lead(s) caíram no plano B local (falha ou JSON inválido do LLM).")
+                st.warning(
+                    f"{resumo['planos_b']} lead(s) usaram o plano B local. "
+                    "Uma falha da IA não comprova falta de potencial comercial."
+                )
+                if resumo.get("falha_gemini"):
+                    st.error(f"Motivo da falha do Gemini: {resumo['falha_gemini']}")
+                diagnosticos = observabilidade.falhas_lote(resumo["lote"])
+                if diagnosticos:
+                    with st.expander("Erros do Gemini neste lote", expanded=True):
+                        for falha in diagnosticos:
+                            st.write(
+                                f"**{falha['modelo'] or 'Gemini'}:** {falha['erro']} "
+                                f"({falha['ocorrencias']} ocorrência(s))"
+                            )
+                st.caption(
+                    "CNPJs reais com pontuação insuficiente vão para Revisão humana, "
+                    "sem descarte automático. O gestor pode fazer triagem na Fila do BDR."
+                )
+            elif resumo.get("usados_gemini"):
+                st.success(f"{resumo['usados_gemini']} análise(s) concluídas pelo Gemini.")
 
     lotes = consultas.lotes_recentes()
     if lotes:
@@ -119,6 +155,11 @@ with aba_lote:
         indice = list(rotulos_lote).index(padrao) if padrao in rotulos_lote else 0
         lote = st.selectbox("Lote", list(rotulos_lote), index=indice, format_func=rotulos_lote.get)
         componentes.linha_etapas(orquestrador.etapas_do_lote(lote))
+        falhas_anteriores = observabilidade.falhas_lote(lote)
+        if falhas_anteriores:
+            with st.expander("Diagnóstico técnico registrado para o lote selecionado"):
+                for falha in falhas_anteriores:
+                    st.write(f"**{falha['modelo'] or 'Gemini'}:** {falha['erro']}")
 
 # ---------- todos os leads, em todas as etapas ----------
 with aba_todos:
