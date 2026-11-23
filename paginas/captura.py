@@ -356,8 +356,7 @@ with aba_busca_real:
                 elif resultado_teste["http"] == 503:
                     st.error(
                         "Busca mínima também falhou com HTTP 503. "
-                        "Não é um problema de nome de cidade ou volume de resultados: "
-                        "a consulta do fornecedor não está respondendo até para um dia e um CNAE. "
+                        "Mesmo com um dia e um CNAE específico, o fornecedor não concluiu a consulta. "
                         "É necessário suporte ou uma fonte alternativa de dados."
                     )
                 else:
@@ -367,8 +366,6 @@ with aba_busca_real:
                     )
                 with st.expander("Filtros exatos do teste (sem chave)"):
                     st.json(filtros_teste)
-
-
 
     if buscar_real:
         for estado in (
