@@ -36,16 +36,18 @@ def _preparar(base_carregada) -> tuple[int, dict, dict]:
 
 def test_status_analise_e_agenda_nao_fingem_contato(base_carregada):
     lead_id, gestor, bdr = _preparar(base_carregada)
-    etapa = gestao_leads.mudar_status(
-        lead_id, bdr, estados.EM_ANALISE, "Avaliar potencial e preparar abordagem"
-    )
+    etapa = gestao_leads.mudar_status(lead_id, bdr, estados.EM_ANALISE, "Avaliar potencial e preparar abordagem")
     assert etapa == estados.EM_ANALISE
     antes = consultas.lead(lead_id)
     assert antes["primeiro_contato_em"] is None
     assert antes["classificacao"] is not None
     ident = agenda.agendar(
-        lead_id, bdr, "Tarefa interna", "Revisar perfil de compra",
-        tempo.daqui(dias=1), "Análise interna sem envio ao cliente",
+        lead_id,
+        bdr,
+        "Tarefa interna",
+        "Revisar perfil de compra",
+        tempo.daqui(dias=1),
+        "Análise interna sem envio ao cliente",
     )
     apos = consultas.lead(lead_id)
     assert apos["etapa"] == estados.EM_ANALISE
@@ -66,17 +68,27 @@ def test_contato_real_altera_status_e_crm_e_requer_base(base_carregada):
     gestao_leads.mudar_status(lead_id, bdr, estados.EM_ANALISE, "Pesquisa de aderência em andamento")
     with pytest.raises(ValueError, match="base legal"):
         gestao_leads.mudar_status(
-            lead_id, bdr, estados.EM_CONTATO, "Tentativa documentada de ligação",
-            canal_contato="Ligação", resultado_contato="Sem resposta",
+            lead_id,
+            bdr,
+            estados.EM_CONTATO,
+            "Tentativa documentada de ligação",
+            canal_contato="Ligação",
+            resultado_contato="Sem resposta",
         )
     assert consultas.lead(lead_id)["primeiro_contato_em"] is None
     lgpd.regularizar(
-        lead_id, gestor["login"], "legitimo_interesse",
+        lead_id,
+        gestor["login"],
+        "legitimo_interesse",
         "Finalidade, necessidade e balanceamento documentados; teste de operação comercial.",
     )
     etapa = gestao_leads.mudar_status(
-        lead_id, bdr, estados.EM_CONTATO, "Ligação realizada para iniciar a conversa",
-        canal_contato="Ligação", resultado_contato="Falou com outra pessoa",
+        lead_id,
+        bdr,
+        estados.EM_CONTATO,
+        "Ligação realizada para iniciar a conversa",
+        canal_contato="Ligação",
+        resultado_contato="Falou com outra pessoa",
     )
     assert etapa == estados.EM_CONTATO
     assert consultas.lead(lead_id)["primeiro_contato_em"]
@@ -87,30 +99,42 @@ def test_contato_real_altera_status_e_crm_e_requer_base(base_carregada):
 def test_qualificacao_real_e_reuniao_geram_agenda_exec(base_carregada):
     lead_id, gestor, bdr = _preparar(base_carregada)
     lgpd.regularizar(
-        lead_id, gestor["login"], "legitimo_interesse",
+        lead_id,
+        gestor["login"],
+        "legitimo_interesse",
         "Avaliação documentada de contato comercial no âmbito do teste.",
     )
     gestao_leads.mudar_status(
-        lead_id, bdr, estados.EM_CONTATO, "Contato efetivo documentado",
-        canal_contato="E-mail", resultado_contato="Interessado",
+        lead_id,
+        bdr,
+        estados.EM_CONTATO,
+        "Contato efetivo documentado",
+        canal_contato="E-mail",
+        resultado_contato="Interessado",
     )
     with pytest.raises(ValueError, match="BANT"):
         gestao_leads.mudar_status(lead_id, bdr, estados.QUALIFICADO, "Qualificado pelo BDR")
     comercial.salvar_bant(
-        lead_id, bdr, {"orcamento": "Em avaliação", "autoridade": "Gestor", "necessidade": "Crédito", "prazo": "30 dias"},
+        lead_id,
+        bdr,
+        {"orcamento": "Em avaliação", "autoridade": "Gestor", "necessidade": "Crédito", "prazo": "30 dias"},
     )
-    assert gestao_leads.mudar_status(lead_id, bdr, estados.QUALIFICADO, "Necessidade validada no contato") == estados.QUALIFICADO
+    assert (
+        gestao_leads.mudar_status(lead_id, bdr, estados.QUALIFICADO, "Necessidade validada no contato")
+        == estados.QUALIFICADO
+    )
     executivo = repositorio.usuarios("executivo")[0]
     quando = tempo.daqui(dias=2)
     comercial.qualificar_e_agendar(
-        lead_id, bdr, quando, executivo["id"], [consultas.lead(lead_id)["solucao_principal"]],
+        lead_id,
+        bdr,
+        quando,
+        executivo["id"],
+        [consultas.lead(lead_id)["solucao_principal"]],
         "Reunião comercial confirmada.",
     )
     assert consultas.lead(lead_id)["etapa"] == estados.REUNIAO
-    assert any(
-        ev["lead_id"] == lead_id and ev["tipo"] == "Reunião confirmada"
-        for ev in agenda.listar(executivo)
-    )
+    assert any(ev["lead_id"] == lead_id and ev["tipo"] == "Reunião confirmada" for ev in agenda.listar(executivo))
 
 
 def test_reuniao_confirmada_bloqueada_sem_base_ou_sem_contato(base_carregada):
@@ -143,9 +167,7 @@ def test_permissao_agenda_e_bdr_inclui_optout(base_carregada):
 
 def test_nota_interna_nao_registra_falso_resultado_de_conversa(base_carregada):
     lead_id, gestor, bdr = _preparar(base_carregada)
-    comercial.registrar_atividade(
-        lead_id, bdr, "Nota", "Falou com o decisor", "Anotação interna sobre perfil."
-    )
+    comercial.registrar_atividade(lead_id, bdr, "Nota", "Falou com o decisor", "Anotação interna sobre perfil.")
     atividade = consultas.atividades(lead_id)[0]
     assert atividade["tipo"] == "Nota"
     assert atividade["resultado"] == ""
