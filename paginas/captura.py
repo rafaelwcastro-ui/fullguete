@@ -296,7 +296,7 @@ with aba_busca_real:
         )
         ano = b.number_input("Ano de abertura", min_value=2000, max_value=2100, value=2026)
         cnae = c.text_input("CNAE (opcional, substitui a tag)", placeholder="Ex.: 4711302", max_chars=10)
-        a, b = st.columns([1.2, 2])
+        a, b, c = st.columns([1.2, 2, 1.6])
         limite = a.selectbox("Resultados por página", [10, 25, 50, 100], index=1)
         buscar_real = b.form_submit_button(
             "Buscar empresas reais",
@@ -305,7 +305,67 @@ with aba_busca_real:
             disabled=not bool(chave),
             width="stretch",
         )
+        diagnosticar_real = c.form_submit_button(
+            "Diagnóstico técnico",
+            icon=":material/monitor_heart:",
+            disabled=not bool(chave),
+            width="stretch",
+        )
     st.write("Filtros:", segmento, f"{cidade}/{uf}", f"Abertura: {busca_cnpj.MESES[mes - 1]}/{ano}")
+    st.caption(
+        "O diagnóstico testa a conta, a saúde da base e uma busca mínima "
+        "(primeiro dia do mês, CNAE 4711302, limite 1). "
+        "Consome uma consulta da cota da API; Health Check tem limite próprio."
+    )
+
+    if diagnosticar_real:
+        st.markdown("**Diagnóstico do serviço LocalizaCNPJ**")
+        try:
+            conta = busca_cnpj.verificar_conexao(chave)
+        except busca_cnpj.ErroBusca as erro:
+            st.error(f"Autenticação: {erro}")
+        else:
+            if not conta["ativa"]:
+                st.error("A chave existe, mas o provedor indica conta inativa.")
+            else:
+                st.success(f"Autenticação OK · plano {conta['plano']}.")
+                with st.spinner("Verificando a saúde da base e a consulta mínima..."):
+                    saude = busca_cnpj.verificar_saude()
+                    filtros_teste = busca_cnpj.filtros_diagnostico(cidade, uf, int(ano), mes)
+                    try:
+                        amostra = busca_cnpj.buscar(chave, filtros_teste)
+                    except busca_cnpj.ErroBusca as erro:
+                        resultado_teste = {"erro": str(erro), "http": erro.status_code}
+                    else:
+                        resultado_teste = {"encontrados": amostra.total_api, "http": 200}
+
+                estado_base = saude["db_ready"]
+                if estado_base is True:
+                    st.info("Health Check: banco acessível no provedor (HTTP 200).")
+                elif estado_base is False:
+                    st.error("Health Check: o banco do provedor não está pronto.")
+                else:
+                    st.warning(f"Health Check: {saude['aviso']} HTTP: {saude['http'] or 'sem resposta'}.")
+
+                if resultado_teste["http"] == 200:
+                    st.success(
+                        "Busca mínima bem-sucedida (HTTP 200). "
+                        f"Empresas retornadas: {resultado_teste['encontrados']}. "
+                        "Se a consulta mensal falha com 503, o custo da busca ampla é a causa provável."
+                    )
+                elif resultado_teste["http"] == 503:
+                    st.error(
+                        "Busca mínima também falhou com HTTP 503. "
+                        "Mesmo com um dia e um CNAE específico, o fornecedor não concluiu a consulta. "
+                        "É necessário suporte ou uma fonte alternativa de dados."
+                    )
+                else:
+                    st.error(
+                        f"Busca mínima falhou (HTTP {resultado_teste['http'] or 'sem resposta'}). "
+                        f"{resultado_teste['erro']}"
+                    )
+                with st.expander("Filtros exatos do teste (sem chave)"):
+                    st.json(filtros_teste)
 
     if buscar_real:
         for estado in (
