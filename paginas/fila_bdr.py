@@ -433,7 +433,9 @@ with ficha:
             for k, rotulo in comercial.BANT_CAMPOS.items():
                 a, b = st.columns([3, 1.4])
                 valores[k] = a.text_input(
-                    rotulo, value=atual.get(k) or "", max_chars=200,
+                    rotulo,
+                    value=atual.get(k) or "",
+                    max_chars=200,
                     placeholder="A descobrir com o BDR",
                 )
                 marcacoes[k] = b.checkbox(
