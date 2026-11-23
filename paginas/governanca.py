@@ -101,8 +101,7 @@ with abas[1]:
             "Documente consentimento ou legítimo interesse fundamentado antes de uma abordagem."
         )
         opcoes_r = {
-            int(r.id): f"#{r.id} {r.nome_fantasia or r.razao_social} · {r.etapa}"
-            for r in pendentes.itertuples()
+            int(r.id): f"#{r.id} {r.nome_fantasia or r.razao_social} · {r.etapa}" for r in pendentes.itertuples()
         }
         with st.form("regularizar"):
             alvo_r = st.selectbox("Lead pendente", list(opcoes_r), format_func=opcoes_r.get) if opcoes_r else None
