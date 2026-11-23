@@ -147,10 +147,15 @@ def enriquecimento(ctx: Contexto, token: str, ficticios: set[str]) -> None:
     texto = features.texto_empresa(lead)
     segmento = features.detectar_segmento(lead.get("cnae", ""), texto)
     simulados = json.loads(lead.get("sinais_simulados") or "{}")
-    if not simulados:
+    if not lead["base_ficticia"]:
+        if simulados:
+            ctx.alteracoes["sinais_simulados"] = "{}"
+        simulados = {}
+        notas.append("Empresa real: sem sinais comportamentais simulados. Apenas cadastro e texto informado.")
+    elif not simulados:
         simulados = _sinais_simulados(lead, features.detectar_sinais(texto, {}), segmento)
         ctx.alteracoes["sinais_simulados"] = json.dumps(simulados, ensure_ascii=False)
-        notas.append("Sinais de mercado simulados adicionados.")
+        notas.append("Sinais fictícios de demonstração adicionados.")
     lead["sinais_simulados"] = simulados
     lead["segmento"] = segmento
     ctx.feats = features.calcular(lead)
@@ -206,7 +211,11 @@ def payload_llm(ctx: Contexto, contexto_candidatas: list[dict]) -> dict:
         },
         "segmento": ctx.segmento_nome,
         "sinais": ctx.sinais_nomes,
-        "sinais_de_mercado_simulados": simulados,
+        "sinais_de_mercado_simulados": simulados if lead["base_ficticia"] else {},
+        "origem_evidencia": "ficticia" if lead["base_ficticia"] else "dados_cadastrais_publicos",
+        "limites_evidencia": (
+            "CNAE, atividade e descrição NÃO provam inadimplência, faturamento, cobrança, fraude ou venda a prazo."
+        ),
         "riscos_ja_identificados": ctx.riscos,
         "candidatas": contexto_candidatas,
     }
