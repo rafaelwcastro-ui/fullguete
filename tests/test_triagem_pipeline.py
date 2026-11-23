@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from streamlit.testing.v1 import AppTest
 
@@ -10,8 +12,6 @@ from banco.conexao import conectar
 from dados import ingestao
 from ia import orquestrador
 from nucleo import estados, lgpd, triagem
-
-from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
