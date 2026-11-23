@@ -40,7 +40,7 @@ Equifax. Decisões de crédito são do cliente, usando essas soluções.
 - **Explicabilidade (XAI).** Toda nota mostra quanto veio da aderência, da propensão e da confiança, a justificativa
   em português e o caminho no grafo que levou à solução.
 - **Sem segmentação territorial.** UF e município são só dados cadastrais e filtros. Não entram na nota.
-- **Base legal.** Sem consentimento ou legítimo interesse, o lead fica Retido LGPD e não recebe contato.
+- **Qualificação e contato separados.** Ausência de base documentada para abordagem não retém o CNPJ nem impede a análise interna. Contatos exigem base legal fundamentada; opt-out continua bloqueando.
 - **Checagem de viés.** A distribuição de notas e de conversão por segmento e porte é acompanhada nesta página.
 - **Dados fictícios e integrações simuladas** são sempre rotulados. CNPJá e CNPJ.ws são APIs reais;
   os dados públicos não comprovam faturamento, inadimplência ou comportamento de crédito.
