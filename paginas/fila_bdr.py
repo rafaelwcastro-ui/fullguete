@@ -209,9 +209,7 @@ with ficha:
         ui.rotulo("Registrar atividade")
         with st.form(f"atividade_{lead_id}", clear_on_submit=True):
             a, b = st.columns(2)
-            tipo = a.selectbox(
-                "Tipo", comercial.TIPOS_ATIVIDADE if status_contato == "liberado" else ["Nota"]
-            )
+            tipo = a.selectbox("Tipo", comercial.TIPOS_ATIVIDADE if status_contato == "liberado" else ["Nota"])
             resultado = b.selectbox("Resultado", comercial.RESULTADOS)
             anotacao = st.text_area("Anotação", max_chars=1000, placeholder="O que foi conversado.")
             a, b = st.columns([2, 1])
