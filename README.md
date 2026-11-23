@@ -20,7 +20,7 @@ uma fila priorizada com roteiro de abordagem. O BDR decide; o resultado do funil
 | Menu | O que faz |
 |---|---|
 | Dashboard | Funil cumulativo, alertas (SLA, LGPD, drift, plano B), quentes aguardando ação, soluções e origem |
-| Captura de leads | Formulário com busca real no CNPJ.ws, planilha, lista de CNPJs, webhook do site simulado, base fictícia |
+| Captura de leads | Formulário CNPJ.ws, planilha, lista de CNPJs, pesquisa real com filtros de segmento/cidade/mês de abertura (LocalizaCNPJ), webhook simulado e base fictícia |
 | Tratamento IA | ICP versionado, 7 agentes por lote, ficha com nota decomposta e caminho no grafo, revisão humana, exportação |
 | Fila do BDR | Metas do dia, fila por SLA e nota, oferta, roteiro com copiar, cadência, BANT, correção da IA, agendamento |
 | Carteira | Todos os leads em qualquer etapa; o gestor redistribui |
