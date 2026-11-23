@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import calendar
 import re
+import unicodedata
 from dataclasses import dataclass
 
 import requests
 
 URL = "https://api.localizacnpj.com.br/busca/filtros"
+URL_CONTA = "https://api.localizacnpj.com.br/auth/me"
 SEGMENTOS = {
     "Varejo": "VAREJISTA",
     "Atacado": "ATACADISTA",
@@ -49,6 +51,47 @@ class PaginaEmpresas:
     has_more: bool
     next_cursor: str | None
     snapshot: str | None
+    total_api: int = 0
+    descartados: int = 0
+
+
+def normalizar_cidade(cidade: str) -> str:
+    """A Receita guarda nomes de município sem acentos (ex.: SAO PAULO).
+
+    A API pesquisa prefixos sem remover diacríticos automaticamente.
+    """
+    ascii_cidade = "".join(
+        letra for letra in unicodedata.normalize("NFKD", cidade.strip()) if not unicodedata.combining(letra)
+    )
+    return re.sub(r"\s+", " ", ascii_cidade).upper()
+
+
+def verificar_conexao(token: str) -> dict:
+    """Testa o acesso sem buscar CNPJs ou expor dados da conta."""
+    if not token.strip():
+        raise ErroBusca("Informe a chave da LocalizaCNPJ antes de testar a conexão.")
+    try:
+        resposta = requests.get(
+            URL_CONTA,
+            headers={"Authorization": f"Bearer {token.strip()}"},
+            timeout=(5, 12),
+            allow_redirects=False,
+        )
+    except requests.RequestException as erro:
+        raise ErroBusca("Não foi possível conectar à LocalizaCNPJ.") from erro
+    if resposta.status_code != 200:
+        raise ErroBusca(
+            "Chave inválida ou acesso indisponível."
+            if resposta.status_code in (401, 403)
+            else f"Não foi possível verificar a chave (HTTP {resposta.status_code})."
+        )
+    try:
+        dados = resposta.json()
+    except ValueError as erro:
+        raise ErroBusca("A autenticação retornou um formato inválido.") from erro
+    if not isinstance(dados, dict):
+        raise ErroBusca("A autenticação retornou um formato inválido.")
+    return {"plano": str(dados.get("plan") or "não informado"), "ativa": dados.get("active") is True}
 
 
 def parametros(
@@ -77,7 +120,7 @@ def parametros(
         raise ValueError("Informe um CNAE de sete dígitos ou deixe o campo vazio.")
     fim = calendar.monthrange(ano, mes)[1]
     filtros = {
-        "cidade": cidade.strip(),
+        "cidade": normalizar_cidade(cidade),
         "uf": uf,
         "abertura_de": f"{ano:04d}-{mes:02d}-01",
         "abertura_ate": f"{ano:04d}-{mes:02d}-{fim:02d}",
@@ -162,9 +205,12 @@ def buscar(token: str, filtros: dict) -> PaginaEmpresas:
         raise ErroBusca("O provedor retornou um formato inesperado. Não foram importados dados.")
     snapshot = dados.get("snapshot")
     registros = [normalizar_empresa(item, snapshot) for item in dados["resultados"]]
+    validos = [item for item in registros if item is not None]
     return PaginaEmpresas(
-        registros=[item for item in registros if item is not None],
+        registros=validos,
         has_more=bool(dados.get("has_more")),
         next_cursor=dados.get("next_cursor"),
         snapshot=str(snapshot) if snapshot else None,
+        total_api=len(registros),
+        descartados=len(registros) - len(validos),
     )
