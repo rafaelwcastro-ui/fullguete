@@ -80,6 +80,9 @@ def registrar_atividade(lead_id: int, usuario: dict, tipo: str, resultado: str, 
 
     if tipo not in TIPOS_ATIVIDADE:
         raise ValueError("Tipo de atividade inválido.")
+    if tipo == "Nota":
+        # Uma nota interna nunca deve contar como conversa efetiva com o cliente.
+        resultado = ""
     if not (anotacao.strip() or resultado):
         raise ValueError("Registre o resultado ou uma anotação.")
     momento = tempo.iso()
@@ -171,10 +174,17 @@ def qualificar_e_agendar(lead_id: int, usuario: dict, data_reuniao: str, executi
     from banco.conexao import conectar
     from ia import resumo
 
+    from . import agenda, lgpd
+
     with conectar() as con:
         lead = _lead(con, lead_id)
         if lead["etapa"] in (estados.FILA_BDR, estados.EM_ANALISE):
             raise ValueError("Registre primeiro um contato permitido antes de qualificar.")
+        if not lgpd.base_para_contato(con, lead_id) or not lead["primeiro_contato_em"]:
+            raise ValueError("Reunião exige base legal documentada e primeiro contato registrado.")
+        instante_reuniao = tempo.ler(data_reuniao)
+        if instante_reuniao is None or instante_reuniao <= tempo.agora():
+            raise ValueError("Selecione data e horário futuros para a reunião.")
         if lead["etapa"] not in (estados.EM_CONTATO, estados.QUALIFICADO):
             raise ValueError(f"O lead está em {lead['etapa']} e não pode ser qualificado agora.")
         bant = con.execute("SELECT necessidade FROM bant WHERE lead_id=?", (lead_id,)).fetchone()
@@ -198,6 +208,7 @@ def qualificar_e_agendar(lead_id: int, usuario: dict, data_reuniao: str, executi
             "executivo_id=excluded.executivo_id, atualizada_em=excluded.atualizada_em",
             (lead_id, repositorio._json(solucoes), executivo_id, None, momento, momento),
         )
+        agenda.registrar_reuniao_passagem(con, lead_id, usuario, executivo_id, data_reuniao, observacao)
         repositorio.auditar(con, usuario["login"], "passagem_executivo", "leads", lead_id,
                             {"executivo_id": executivo_id, "reuniao": data_reuniao})  # fmt: skip
     texto, motor = resumo.passagem(lead_id)
