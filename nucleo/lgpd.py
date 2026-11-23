@@ -25,6 +25,33 @@ DESTINO_OPT_OUT = {
 }
 
 
+def base_para_contato(con, lead_id: int) -> bool:
+    """Somente contato com base legal documentada; dados públicos não bastam."""
+    lead = con.execute("SELECT opt_out FROM leads WHERE id=?", (lead_id,)).fetchone()
+    if lead is None or lead["opt_out"]:
+        return False
+    ultimo = con.execute(
+        "SELECT base_legal, opt_out_em FROM consentimentos WHERE lead_id=? ORDER BY id DESC LIMIT 1",
+        (lead_id,),
+    ).fetchone()
+    return bool(
+        ultimo
+        and ultimo["base_legal"] in ("consentimento", "legitimo_interesse")
+        and not ultimo["opt_out_em"]
+    )
+
+
+def status_contato(lead_id: int) -> str:
+    """Situação para interfaces, sem misturar qualificação e permissão de abordagem."""
+    with conectar() as con:
+        lead = con.execute("SELECT opt_out FROM leads WHERE id=?", (lead_id,)).fetchone()
+        if lead is None:
+            raise ValueError("Lead não encontrado.")
+        if lead["opt_out"]:
+            return "opt_out"
+        return "liberado" if base_para_contato(con, lead_id) else "pendente"
+
+
 def registrar_opt_out(lead_id: int, ator: str, observacao: str = "") -> str:
     """Tira o lead das filas e bloqueia novo contato. Retorna a etapa final."""
     momento = tempo.iso()
@@ -50,7 +77,7 @@ def registrar_opt_out(lead_id: int, ator: str, observacao: str = "") -> str:
 
 
 def regularizar(lead_id: int, ator: str, base_legal: str, observacao: str) -> None:
-    """Registra uma base legal válida para um lead retido. O lead volta para o tratamento."""
+    """Documenta a base de contato de um lead em qualquer etapa, sem forçar reprocessamento."""
     if base_legal not in ("consentimento", "legitimo_interesse"):
         raise ValueError("Escolha uma base legal válida.")
     if not observacao.strip():
@@ -59,14 +86,18 @@ def regularizar(lead_id: int, ator: str, base_legal: str, observacao: str) -> No
         lead = con.execute("SELECT etapa, opt_out FROM leads WHERE id=?", (lead_id,)).fetchone()
         if lead["opt_out"]:
             raise ValueError("O titular pediu opt-out. Não é possível regularizar para contato.")
-        if lead["etapa"] != estados.RETIDO:
-            raise ValueError("Só leads em Retido LGPD precisam de regularização.")
+        if base_para_contato(con, lead_id):
+            raise ValueError("O lead já possui base legal de contato registrada.")
         con.execute(
             "INSERT INTO consentimentos (lead_id, base_legal, consentiu, canal, registrado_em, registrado_por, observacao)"
             " VALUES (?,?,?,?,?,?,?)",
             (lead_id, base_legal, int(base_legal == "consentimento"), "regularizacao", tempo.iso(), ator, observacao),
         )
         repositorio.auditar(con, ator, "base_legal_regularizada", "leads", lead_id, {"base_legal": base_legal})
+        if lead["etapa"] == estados.FILA_BDR:
+            from . import comercial
+
+            comercial.criar_cadencia(con, lead_id)
 
 
 def buscar_titular(termo: str) -> list[dict]:
