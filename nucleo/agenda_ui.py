@@ -9,7 +9,7 @@ import streamlit as st
 
 from banco import consultas, repositorio
 
-from . import agenda, tempo
+from . import agenda, comercial, estados, tempo
 
 
 def _formulario(usuario: dict, *, prefixo: str, lead_id: int | None = None) -> None:
@@ -176,8 +176,22 @@ def painel(usuario: dict, *, prefixo: str = "crm") -> None:
                     st.session_state[f"{prefixo}_agenda_msg"] = "Compromisso cancelado."
                     st.rerun()
             evento_selecionado = next(e for e in escolhidos if e["id"] == selecionado)
-            if c.button("Abrir empresa na Fila do BDR", key=f"{prefixo}_abrir_lead"):
-                st.session_state["fila_abrir_id"] = int(evento_selecionado["lead_id"])
-                st.switch_page("paginas/fila_bdr.py")
+            etapa = evento_selecionado["etapa"]
+            rotulo = (
+                "Abrir na Fila do BDR" if etapa in comercial.ETAPAS_ATIVAS_BDR
+                else "Abrir no CRM" if etapa in estados.ETAPAS_FUNIL
+                else "Abrir na Carteira"
+            )
+            if c.button(rotulo, key=f"{prefixo}_abrir_lead"):
+                ident = int(evento_selecionado["lead_id"])
+                if etapa in comercial.ETAPAS_ATIVAS_BDR:
+                    st.session_state["fila_abrir_id"] = ident
+                    st.switch_page("paginas/fila_bdr.py")
+                elif etapa in estados.ETAPAS_FUNIL:
+                    st.session_state["crm_seletor"] = ident
+                    st.rerun()
+                else:
+                    st.session_state["carteira_abrir_id"] = ident
+                    st.switch_page("paginas/carteira.py")
         with st.expander("Novo compromisso", expanded=False):
             _formulario(usuario, prefixo=prefixo)
