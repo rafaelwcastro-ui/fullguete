@@ -165,14 +165,14 @@ def salvar_bant(
         campos = {
             campo: (valores.get(campo) or "").strip()[:200]
             if campo in valores
-            else (anterior[campo] or "") if anterior else ""
+            else (anterior[campo] or "")
+            if anterior
+            else ""
             for campo in BANT_CAMPOS
         }
         confirmados_antes = {
             linha["campo"]: bool(linha["confirmado"])
-            for linha in con.execute(
-                "SELECT campo, confirmado FROM bant_validacoes WHERE lead_id=?", (lead_id,)
-            )
+            for linha in con.execute("SELECT campo, confirmado FROM bant_validacoes WHERE lead_id=?", (lead_id,))
         }
         marcacoes = {}
         for campo in BANT_CAMPOS:
