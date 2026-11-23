@@ -10,6 +10,7 @@ import json
 import catalogo
 from banco import consultas
 from dados.features import normalizar
+from nucleo import comercial
 
 from . import provedor, rag
 
@@ -22,25 +23,55 @@ SISTEMA = (
 )
 EXEMPLOS = [
     "Prepare-me para a reunião com {empresa}",
+    "Qual foi o histórico de atividades de {empresa}?",
     "Qual solução Equifax resolve chargeback?",
-    "Escreva um follow up depois de uma ligação sem resposta",
+    "Qual o próximo passo para {empresa}?",
 ]
 
 
-def contexto_lead(lead_id: int | None) -> dict | None:
+def chave_conversa(usuario_id: int, lead_id: int | None) -> str:
+    """Isola o chat por usuário e por lead; o chat geral fica separado."""
+    return f"assistente_historico_{usuario_id}_{lead_id or 'geral'}"
+
+
+def contexto_lead(lead_id: int | None, usuario: dict | None = None) -> dict | None:
+    """Contexto comercial com autorização explícita, sem dados pessoais do contato."""
     if not lead_id:
         return None
+    if not usuario or usuario.get("papel") not in ("bdr", "gestor", "executivo"):
+        raise PermissionError("Sessão sem permissão para consultar este lead.")
     lead = consultas.lead(lead_id)
     if not lead:
         return None
+    if usuario["papel"] == "bdr" and lead.get("responsavel_id") != usuario.get("id"):
+        raise PermissionError("Este lead não pertence à carteira do BDR.")
+
     trat = consultas.ultimo_tratamento(lead_id) or {}
     res = trat.get("resultado") or {}
     bant = consultas.bant(lead_id) or {}
+    # Incluímos somente resultados padronizados: notas e textos livres podem conter dados de contato.
+    atividades = [
+        {
+            "quando": atividade["registrada_em"],
+            "tipo": atividade["tipo"] if atividade["tipo"] in comercial.TIPOS_ATIVIDADE else "Outro",
+            "resultado": atividade["resultado"] if atividade["resultado"] in comercial.RESULTADOS else "Não padronizado",
+        }
+        for atividade in consultas.atividades(lead_id)[:5]
+    ]
+    oportunidade = consultas.oportunidade(lead_id) or {}
     return {
         "empresa": lead.get("nome_fantasia") or lead["razao_social"],
         "setor": lead.get("setor"),
         "porte": lead.get("porte"),
         "etapa": lead["etapa"],
+        "origem_demonstrativa": bool(lead.get("base_ficticia")),
+        "atividades_recentes": atividades,
+        "retorno_em": lead.get("retorno_em"),
+        "oportunidade": {
+            "solucoes": [catalogo.nome(s) for s in oportunidade.get("solucoes", [])],
+            "valor_mensal_estimado": oportunidade.get("valor_mensal"),
+            "previsao_fechamento": oportunidade.get("previsao_fechamento"),
+        } if oportunidade else None,
         "nota_final": lead.get("nota_final"),
         "classificacao": lead.get("classificacao"),
         "solucao_principal": catalogo.nome(lead.get("solucao_principal") or ""),
@@ -54,6 +85,26 @@ def contexto_lead(lead_id: int | None) -> dict | None:
 
 def _local(pergunta: str, lead: dict | None, fontes: list[tuple[dict, float]]) -> str:
     texto = normalizar(pergunta)
+    if lead and any(termo in texto for termo in ("historico", "atividades", "ultimo contato")):
+        atividades = lead["atividades_recentes"]
+        if not atividades:
+            return f"Ainda não há atividades registradas para {lead['empresa']}."
+        linhas = [
+            f"- {a['quando'][:10]} · {a['tipo']}: {a['resultado']}"
+            for a in atividades
+        ]
+        return f"Últimas atividades registradas de {lead['empresa']}:\n" + "\n".join(linhas)
+    if lead and any(termo in texto for termo in ("proxima acao", "proximo passo", "o que fazer")):
+        etapa = lead["etapa"]
+        retorno = lead.get("retorno_em")
+        if retorno:
+            return (f"{lead['empresa']} está na etapa {etapa}. Há retorno registrado para {retorno[:10]}. "
+                    "Confira a tarefa e o histórico na ficha comercial antes de contatar.")
+        if not lead["atividades_recentes"]:
+            return (f"{lead['empresa']} está na etapa {etapa}, sem atividades registradas. "
+                    "Valide o produto sugerido e realize a primeira abordagem autorizada.")
+        return (f"{lead['empresa']} está na etapa {etapa}. Revise a última atividade registrada "
+                "e defina o próximo contato ou avanço no funil.")
     if lead and ("reuniao" in texto or "prepare" in texto or "preparar" in texto):
         perguntas = "\n".join(f"- {p}" for p in lead["perguntas"]) or "- Confirmar a dor principal"
         objecoes = "\n".join(f"- {o['objecao']} Resposta: {o['resposta']}" for o in lead["objecoes"][:2])
@@ -81,8 +132,9 @@ def _local(pergunta: str, lead: dict | None, fontes: list[tuple[dict, float]]) -
     return "Pelo catálogo, as soluções mais ligadas à sua pergunta são:\n" + "\n".join(linhas)
 
 
-def responder(pergunta: str, lead_id: int | None = None, historico: list[dict] | None = None) -> dict:
-    lead = contexto_lead(lead_id)
+def responder(pergunta: str, lead_id: int | None = None, historico: list[dict] | None = None,
+             usuario: dict | None = None) -> dict:  # fmt: skip
+    lead = contexto_lead(lead_id, usuario)
     consulta = pergunta + (" " + " ".join(lead["dores"]) if lead else "")
     fontes = rag.buscar(consulta, k=4)
     nomes = [s["nome"] for s, _ in fontes]
