@@ -1,3 +1,13 @@
+-- Mantém a abertura do estabelecimento após a importação (antes só existia no payload bronze).
+ALTER TABLE leads ADD COLUMN data_abertura TEXT;
+UPDATE leads SET data_abertura = (
+    SELECT json_extract(b.payload, '$.data_abertura')
+    FROM leads_brutos b
+    WHERE b.lead_id=leads.id AND json_valid(b.payload)
+      AND json_extract(b.payload, '$.data_abertura') IS NOT NULL
+    ORDER BY b.id DESC LIMIT 1
+) WHERE data_abertura IS NULL;
+
 -- Campanhas de descoberta de empresas: filtros, amostras de respostas e origem de cada lead.
 -- Chaves de API nunca são persistidas nesta estrutura.
 CREATE TABLE IF NOT EXISTS buscas_prospeccao (
