@@ -176,3 +176,53 @@ def test_autenticacao_api_sem_expor_dados_pessoais(monkeypatch):
     assert urls[0][1] == {"Authorization": "Bearer minha-chave"}
     assert "contato.sigiloso" not in str(status)
     assert "segredo-de-identificacao" not in str(status)
+
+
+def test_filtros_diagnostico_consulta_um_dia_um_cnae():
+    filtros = busca_cnpj.filtros_diagnostico("Campinas", "SP", 2026, 1)
+    assert filtros["cidade"] == "CAMPINAS"
+    assert filtros["uf"] == "SP"
+    assert filtros["cnae"] == "4711302"
+    assert filtros["abertura_de"] == "2026-01-01"
+    assert filtros["abertura_ate"] == "2026-01-01"
+    assert filtros["limit"] == 1
+    assert "atividade" not in filtros
+
+
+def test_health_check_indica_banco_indisponivel(monkeypatch):
+    class Resposta:
+        status_code = 200
+
+        def json(self):
+            return {"status": "starting", "db_ready": False}
+
+    def get(url, *, timeout, allow_redirects):
+        assert url.endswith("/health")
+        assert allow_redirects is False
+        return Resposta()
+
+    monkeypatch.setattr(busca_cnpj.requests, "get", get)
+    saude = busca_cnpj.verificar_saude()
+    assert saude == {"http": 200, "db_ready": False, "aviso": ""}
+
+
+def test_health_check_rate_limited_nao_confunde_com_busca(monkeypatch):
+    class Resposta:
+        status_code = 429
+
+    monkeypatch.setattr(busca_cnpj.requests, "get", lambda *args, **kwargs: Resposta())
+    saude = busca_cnpj.verificar_saude()
+    assert saude["http"] == 429 and saude["db_ready"] is None
+    assert "2 consultas/hora" in saude["aviso"]
+
+
+def test_erro_503_e_identificavel_sem_credencial_exposta(monkeypatch):
+    class Resposta:
+        status_code = 503
+
+    monkeypatch.setattr(busca_cnpj.requests, "get", lambda *args, **kwargs: Resposta())
+    with pytest.raises(busca_cnpj.ErroBusca) as captura:
+        busca_cnpj.buscar("CHAVE_ULTRA_SIGILOSA", {"uf": "SP", "limit": 1})
+    assert captura.value.status_code == 503
+    assert "HTTP 503" in str(captura.value)
+    assert "CHAVE_ULTRA_SIGILOSA" not in str(captura.value)
