@@ -42,9 +42,7 @@ def test_salvar_so_um_criterio_nao_exige_outros_tres(base_carregada):
 
 def test_salvamento_incremental_nao_apaga_campo_confirmado(base_carregada):
     lead_id, bdr = _lead(base_carregada)
-    comercial.salvar_bant(
-        lead_id, bdr, {"autoridade": "Gerente financeiro"}, {"autoridade": True}
-    )
+    comercial.salvar_bant(lead_id, bdr, {"autoridade": "Gerente financeiro"}, {"autoridade": True})
     comercial.salvar_bant(lead_id, bdr, {"necessidade": "Analisar risco dos compradores"})
     bant = consultas.bant(lead_id)
     validacoes = consultas.bant_validacoes(lead_id)
@@ -73,9 +71,10 @@ def test_proibir_confirmacao_sem_conteudo_sem_apagar_bant(base_carregada):
 
 def test_bdr_pode_trabalhar_lead_antes_de_completar_bant(base_carregada):
     lead_id, bdr = _lead(base_carregada)
-    assert gestao_leads.mudar_status(
-        lead_id, bdr, estados.EM_ANALISE, "Preparação comercial sem BANT completo"
-    ) == estados.EM_ANALISE
+    assert (
+        gestao_leads.mudar_status(lead_id, bdr, estados.EM_ANALISE, "Preparação comercial sem BANT completo")
+        == estados.EM_ANALISE
+    )
     assert consultas.bant(lead_id) is None
     comercial.registrar_atividade(lead_id, bdr, "Nota", "", "Investigar necessidade")
     assert consultas.lead(lead_id)["etapa"] == estados.EM_ANALISE
