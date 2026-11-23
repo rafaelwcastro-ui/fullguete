@@ -227,7 +227,10 @@ def buscar(token: str, filtros: dict) -> PaginaEmpresas:
         503: "HTTP 503: a LocalizaCNPJ não concluiu a busca em até 8 segundos ou seu índice está indisponível. Consulte o diagnóstico técnico para diferenciar as causas.",
     }
     if resposta.status_code != 200:
-        raise ErroBusca(erros.get(resposta.status_code, f"Erro do provedor (HTTP {resposta.status_code})."), status_code=resposta.status_code)
+        raise ErroBusca(
+            erros.get(resposta.status_code, f"Erro do provedor (HTTP {resposta.status_code})."),
+            status_code=resposta.status_code,
+        )
     try:
         dados = resposta.json()
     except ValueError as erro:
