@@ -144,14 +144,17 @@ with aba_todos:
             ]
         st.metric("Leads encontrados", len(todos))
         st.dataframe(
-            todos[
-                ["id", "cnpj", "razao_social", "tags", "etapa", "responsavel", "nota_final", "solucao_principal"]
-            ],
-            hide_index=True, width="stretch",
+            todos[["id", "cnpj", "razao_social", "tags", "etapa", "responsavel", "nota_final", "solucao_principal"]],
+            hide_index=True,
+            width="stretch",
             column_config={
                 "id": st.column_config.NumberColumn("ID"),
-                "cnpj": "CNPJ", "razao_social": "Empresa", "tags": "Campanhas",
-                "etapa": "Etapa atual", "responsavel": "BDR", "nota_final": "Nota",
+                "cnpj": "CNPJ",
+                "razao_social": "Empresa",
+                "tags": "Campanhas",
+                "etapa": "Etapa atual",
+                "responsavel": "BDR",
+                "nota_final": "Nota",
                 "solucao_principal": "Solução",
             },
         )
