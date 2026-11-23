@@ -30,7 +30,7 @@ def nome_solucao(identificador: object) -> str:
 
 
 def opcoes_solucoes(valores: Iterable[object]) -> list[str]:
-    return sorted({v for valor in valores if (v := texto_valido(valor))}, key=str.casefold)
+    return sorted({v for valor in valores if (v := texto_valido(valor))}, key=lambda s: (s.casefold(), s))
 
 
 def valor_seguro(valor: object) -> float:
