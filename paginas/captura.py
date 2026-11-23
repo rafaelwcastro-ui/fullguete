@@ -454,8 +454,8 @@ with aba_cnpja:
                 disabled=not bool(escolhidos_c),
                 key="cnpja_importar",
             ):
-                if pesquisa_id_c is None:
-                    st.error("Pesquisa não salva. Execute a consulta novamente.")
+                if pesquisa_atual_c is None:
+                    st.error("Pesquisa não encontrada no banco. Execute uma nova consulta antes de importar.")
                 else:
                     resultado_importacao_c = prospeccao.importar(pesquisa_id_c, escolhidos_c, ator)
                     _mostrar_resultado(resultado_importacao_c)
@@ -477,8 +477,8 @@ with aba_cnpja:
                 proximo_c.recebidas += pagina_c.recebidas
                 proximo_c.rejeitadas += pagina_c.rejeitadas
                 st.session_state["cnpja_pagina"] = proximo_c
-                if pesquisa_id_c:
-                    prospeccao.acrescentar(pesquisa_id_c, proximo_c.empresas, proximo_c.total)
+                if pesquisa_atual_c:
+                    prospeccao.acrescentar(pesquisa_atual_c.id, proximo_c.empresas, proximo_c.total)
                 st.rerun()
 
 
