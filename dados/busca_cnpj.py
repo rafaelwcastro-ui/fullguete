@@ -23,8 +23,18 @@ SEGMENTOS = {
     "Todos": "",
 }
 MESES = (
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+    "Janeiro",
+    "Fevereiro",
+    "Março",
+    "Abril",
+    "Maio",
+    "Junho",
+    "Julho",
+    "Agosto",
+    "Setembro",
+    "Outubro",
+    "Novembro",
+    "Dezembro",
 )
 PORTES = {"01": "ME", "03": "EPP"}
 
@@ -151,10 +161,7 @@ def buscar(token: str, filtros: dict) -> PaginaEmpresas:
     if not isinstance(dados, dict) or not isinstance(dados.get("resultados"), list):
         raise ErroBusca("O provedor retornou um formato inesperado. Não foram importados dados.")
     snapshot = dados.get("snapshot")
-    registros = [
-        normalizar_empresa(item, snapshot)
-        for item in dados["resultados"]
-    ]
+    registros = [normalizar_empresa(item, snapshot) for item in dados["resultados"]]
     return PaginaEmpresas(
         registros=[item for item in registros if item is not None],
         has_more=bool(dados.get("has_more")),
