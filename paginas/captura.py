@@ -287,8 +287,7 @@ with aba_cnpja:
     historico_c = prospeccao.listar()
     if historico_c:
         st.caption(
-            f"{len(historico_c)} busca(s) salva(s) nesta base. "
-            "Reabra resultados já consultados sem consumir créditos."
+            f"{len(historico_c)} busca(s) salva(s) nesta base. Reabra resultados já consultados sem consumir créditos."
         )
         rotulos_c = {
             item["id"]: (
@@ -306,16 +305,21 @@ with aba_cnpja:
             if antiga_c:
                 st.session_state["cnpja_pesquisa_id"] = antiga_c.id
                 st.session_state["cnpja_pagina"] = cnpja.Resultado(
-                    empresas=antiga_c.empresas, recebidas=len(antiga_c.empresas),
-                    rejeitadas=0, total=antiga_c.total_fonte, next_token=None,
+                    empresas=antiga_c.empresas,
+                    recebidas=len(antiga_c.empresas),
+                    rejeitadas=0,
+                    total=antiga_c.total_fonte,
+                    next_token=None,
                 )
                 st.session_state["cnpja_filtros"] = antiga_c.filtros
+                st.session_state.pop("cnpja_selecao", None)
                 st.rerun()
         st.dataframe(
             pd.DataFrame(historico_c)[
                 ["tag", "cidade", "uf", "segmento", "criada_em", "encontrados", "importados", "retidos", "na_fila"]
             ],
-            hide_index=True, width="stretch",
+            hide_index=True,
+            width="stretch",
         )
     else:
         st.caption("Ainda não há buscas salvas. A primeira consulta bem-sucedida criará uma campanha.")
@@ -362,6 +366,7 @@ with aba_cnpja:
         st.session_state.pop("cnpja_pagina", None)
         st.session_state.pop("cnpja_filtros", None)
         st.session_state.pop("cnpja_pesquisa_id", None)
+        st.session_state.pop("cnpja_selecao", None)
         try:
             codigo_c = int(ibge_c) if ibge_c.strip() else cnpja.municipio_ibge(cidade_c, uf_c)
             parametros_c = cnpja.filtros(segmento_c, uf_c, codigo_c, int(ano_c), mes_c, codigos_c, limite_c)
@@ -371,8 +376,17 @@ with aba_cnpja:
             st.error(str(erro))
         else:
             campanha_c = prospeccao.registrar(
-                "cnpja", segmento_c, cidade_c.strip(), uf_c, int(ano_c), mes_c, codigos_c,
-                parametros_c, resultado_c.empresas, resultado_c.total, ator,
+                "cnpja",
+                segmento_c,
+                cidade_c.strip(),
+                uf_c,
+                int(ano_c),
+                mes_c,
+                codigos_c,
+                parametros_c,
+                resultado_c.empresas,
+                resultado_c.total,
+                ator,
                 tag_preferida=nome_tag_c,
             )
             st.session_state["cnpja_pesquisa_id"] = campanha_c.id
