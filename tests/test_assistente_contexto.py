@@ -13,14 +13,16 @@ from ia import assistente, provedor
 @pytest.fixture
 def lead_com_historico(base_carregada):
     lead_id = ingestao.receber(
-        [{
-            "razao_social": "Distribuidora Fictícia Contexto",
-            "consentimento": "sim",
-            "interesse": "Crédito",
-            "contato_nome": "Pessoa Sigilosa",
-            "email": "pessoa@exemplo.invalid",
-            "origem": "formulario",
-        }],
+        [
+            {
+                "razao_social": "Distribuidora Fictícia Contexto",
+                "consentimento": "sim",
+                "interesse": "Crédito",
+                "contato_nome": "Pessoa Sigilosa",
+                "email": "pessoa@exemplo.invalid",
+                "origem": "formulario",
+            }
+        ],
         "formulario",
         "teste",
     ).criados[0]
@@ -31,8 +33,14 @@ def lead_com_historico(base_carregada):
         con.execute(
             "INSERT INTO atividades (lead_id, usuario_id, registrada_em, tipo, resultado, anotacao) "
             "VALUES (?, ?, ?, ?, ?, ?)",
-            (lead_id, bdr["id"], "2026-11-23T12:00:00", "Ligação", "Interessado",
-             "Pessoa Sigilosa respondeu pelo e-mail pessoa@exemplo.invalid."),
+            (
+                lead_id,
+                bdr["id"],
+                "2026-11-23T12:00:00",
+                "Ligação",
+                "Interessado",
+                "Pessoa Sigilosa respondeu pelo e-mail pessoa@exemplo.invalid.",
+            ),
         )
         con.execute(
             "INSERT INTO oportunidades (lead_id, solucoes, valor_mensal, criada_em, atualizada_em) "
