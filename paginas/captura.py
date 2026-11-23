@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from dados import cnpj as cnpj_util
-from dados import cnpjws, ingestao, limpeza
+from dados import busca_cnpj, cnpjws, ingestao, limpeza
 from dados.features import INTERESSES, PORTES
 from nucleo import config, ui
 
@@ -70,8 +70,11 @@ st.toggle(
 if msg := st.session_state.pop("captura_msg", None):
     st.success(msg)
 
-aba_form, aba_planilha, aba_cnpj, aba_site, aba_base = st.tabs(
-    ["Formulário manual", "Planilha", "CNPJs conhecidos", "Site / webhook (simulado)", "Base fictícia"]
+aba_form, aba_planilha, aba_cnpj, aba_busca_real, aba_site, aba_base = st.tabs(
+    [
+        "Formulário manual", "Planilha", "CNPJs conhecidos",
+        "Buscar CNPJs reais", "Site / webhook (simulado)", "Base fictícia",
+    ]
 )
 
 # ---------- formulário manual ----------
@@ -236,6 +239,159 @@ with aba_cnpj:
                 st.caption("Copie os CNPJs para a lista acima para capturar.")
         if not token:
             st.caption("Configure CNPJ_WS_TOKEN no .env para liberar a busca.")
+
+# ---------- descoberta de CNPJs reais por filtros ----------
+with aba_busca_real:
+    st.markdown("#### Buscar empresas reais na base de CNPJs")
+    st.caption(
+        "Descubra estabelecimentos por atividade, cidade e mês de abertura. "
+        "A consulta é feita na base da Receita Federal organizada pelo provedor LocalizaCNPJ. "
+        "Os resultados não são fictícios e não são capturados automaticamente."
+    )
+    chave_configurada = config.token_localizacnpj()
+    if chave_configurada:
+        st.success("API de pesquisa configurada nos Secrets do portal.")
+    else:
+        st.info(
+            "Esta pesquisa usa uma chave gratuita da LocalizaCNPJ. "
+            "Cadastre sua chave no provedor e informe-a abaixo. "
+            "O plano Free possui limites de uso."
+        )
+        st.markdown(
+            "[Documentação e cadastro da API LocalizaCNPJ](https://api.localizacnpj.com.br/)"
+        )
+        st.text_input(
+            "Chave de API gratuita",
+            type="password",
+            key="busca_real_chave",
+            help="Usada apenas na sessão, enviada ao provedor pelo servidor; não é gravada na base de leads.",
+        )
+    chave = chave_configurada or st.session_state.get("busca_real_chave", "")
+
+    with st.form("buscar_cnpjs_reais"):
+        st.markdown("**Filtros da prospecção**")
+        a, b, c = st.columns([1.5, 2, 0.8])
+        segmento = a.selectbox("Tag de segmento", list(busca_cnpj.SEGMENTOS), index=0)
+        cidade = b.text_input("Cidade", value="Campinas", max_chars=100)
+        uf = c.selectbox("UF", sorted(limpeza.UFS), index=sorted(limpeza.UFS).index("SP"))
+        a, b, c = st.columns([1.2, 1, 1.4])
+        mes = a.selectbox(
+            "Mês de abertura",
+            list(range(1, 13)),
+            index=3,
+            format_func=lambda m: busca_cnpj.MESES[m - 1],
+        )
+        ano = b.number_input("Ano de abertura", min_value=2000, max_value=2100, value=2026)
+        cnae = c.text_input("CNAE (opcional, substitui a tag)", placeholder="Ex.: 4711302", max_chars=10)
+        a, b = st.columns([1.2, 2])
+        limite = a.selectbox("Resultados por página", [10, 25, 50, 100], index=1)
+        buscar_real = b.form_submit_button(
+            "Buscar empresas reais", type="primary", icon=":material/search:",
+            disabled=not bool(chave), use_container_width=True,
+        )
+    st.write("Filtros:", segmento, f"{cidade}/{uf}", f"Abertura: {busca_cnpj.MESES[mes - 1]}/{ano}")
+
+    if buscar_real:
+        try:
+            filtros = busca_cnpj.parametros(
+                segmento, cidade, uf, int(ano), mes, cnae, limite=limite
+            )
+            with st.spinner("Consultando registros reais de CNPJ..."):
+                pagina = busca_cnpj.buscar(chave, filtros)
+        except (ValueError, busca_cnpj.ErroBusca) as erro:
+            st.error(str(erro))
+        else:
+            st.session_state["busca_real_filtros"] = filtros
+            st.session_state["busca_real_resultados"] = pagina.registros
+            st.session_state["busca_real_cursor"] = pagina.next_cursor
+            st.session_state["busca_real_mais"] = pagina.has_more
+            st.session_state["busca_real_snapshot"] = pagina.snapshot
+            st.session_state.pop("busca_real_selecionados", None)
+
+    registros_reais = st.session_state.get("busca_real_resultados")
+    if registros_reais is not None:
+        st.divider()
+        if not registros_reais:
+            st.warning("Nenhuma empresa encontrada nesta consulta. Revise os filtros.")
+        else:
+            st.success(f"{len(registros_reais)} empresas reais carregadas nesta pesquisa.")
+            snapshot = st.session_state.get("busca_real_snapshot") or "não informado"
+            st.caption(
+                f"Base do provedor: {snapshot}. Quantidade exibida é parcial quando há mais páginas. "
+                "Data de abertura significa início da atividade do estabelecimento."
+            )
+            tabela = pd.DataFrame(registros_reais)
+            colunas = [
+                "cnpj", "razao_social", "nome_fantasia", "cidade", "uf",
+                "cnae", "setor", "data_abertura", "porte",
+            ]
+            tabela = tabela[colunas].rename(columns={
+                "cnpj": "CNPJ", "razao_social": "Razão social",
+                "nome_fantasia": "Fantasia", "cidade": "Cidade", "uf": "UF",
+                "cnae": "CNAE", "setor": "Atividade", "data_abertura": "Abertura",
+                "porte": "Porte",
+            })
+            st.dataframe(tabela, width="stretch", hide_index=True)
+            st.download_button(
+                "Exportar resultados CSV",
+                tabela.to_csv(sep=";", index=False).encode("utf-8-sig"),
+                "fullguete_cnpjs_reais.csv",
+                "text/csv",
+                on_click="ignore",
+                icon=":material/download:",
+            )
+
+            st.markdown("**Importar resultados para a captura de leads**")
+            por_cnpj = {r["cnpj"]: r for r in registros_reais}
+            selecionar = st.multiselect(
+                "Empresas que deseja importar", list(por_cnpj),
+                default=list(por_cnpj),
+                format_func=lambda numero: (
+                    f'{por_cnpj[numero]["razao_social"]} · {numero}'
+                ),
+            )
+            st.warning(
+                "Dados cadastrais públicos não significam consentimento para contato. "
+                "Por padrão, os leads são retidos até validação da base legal."
+            )
+            legitimo = st.checkbox(
+                "Analisei e documentei a finalidade, a necessidade e o legítimo interesse para contato B2B "
+                "dessas empresas.",
+                key="busca_real_legitimo",
+            )
+            if st.button(
+                f"Importar {len(selecionar)} empresas selecionadas",
+                type="primary", disabled=not bool(selecionar),
+                icon=":material/add_business:",
+            ):
+                registros = []
+                for numero in selecionar:
+                    empresa = {**por_cnpj[numero]}
+                    empresa["base_legal"] = "legitimo_interesse" if legitimo else "sem_base"
+                    empresa["consentimento"] = ""
+                    registros.append(empresa)
+                _mostrar_resultado(ingestao.receber(registros, "busca_cnpj", ator))
+
+        if st.session_state.get("busca_real_mais") and st.session_state.get("busca_real_cursor"):
+            if st.button("Carregar próxima página", icon=":material/arrow_forward:"):
+                try:
+                    filtros = {
+                        **st.session_state["busca_real_filtros"],
+                        "cursor": st.session_state["busca_real_cursor"],
+                    }
+                    with st.spinner("Carregando mais empresas..."):
+                        proxima = busca_cnpj.buscar(chave, filtros)
+                except busca_cnpj.ErroBusca as erro:
+                    st.error(str(erro))
+                else:
+                    existentes = {r["cnpj"]: r for r in st.session_state["busca_real_resultados"]}
+                    existentes.update({r["cnpj"]: r for r in proxima.registros})
+                    st.session_state["busca_real_resultados"] = list(existentes.values())
+                    st.session_state["busca_real_cursor"] = proxima.next_cursor
+                    st.session_state["busca_real_mais"] = proxima.has_more
+                    st.session_state["busca_real_snapshot"] = proxima.snapshot
+                    st.session_state.pop("busca_real_selecionados", None)
+                    st.rerun()
 
 # ---------- site / webhook simulado ----------
 with aba_site:
