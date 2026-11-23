@@ -92,7 +92,7 @@ with abas[1]:
             base_legal = st.radio("Nova base legal", ["consentimento", "legitimo_interesse"], horizontal=True,
                                   format_func={"consentimento": "Consentimento", "legitimo_interesse": "Legítimo interesse"}.get)  # fmt: skip
             obs_r = st.text_input("Como foi obtida (obrigatório)", max_chars=200)
-            ok_r = st.form_submit_button("Regularizar e tratar", disabled=not opcoes_r)
+            ok_r = st.form_submit_button("Regularizar e tratar", disabled=not (opcoes_r and pode_editar))
         if ok_r and alvo_r:
             try:
                 lgpd.regularizar(alvo_r, usuario["login"], base_legal, obs_r)
