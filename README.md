@@ -13,14 +13,14 @@ uma fila priorizada com roteiro de abordagem. O BDR decide; o resultado do funil
 
 > O Fullguete não toma decisão de crédito: ele prioriza prospects comerciais. Projeto acadêmico, sem vínculo com a
 > Equifax. Não existe API da Equifax neste projeto: dados que dependeriam dela são simulados e rotulados como tal.
-> A única API real é a do CNPJ.ws.
+> APIs cadastrais reais: CNPJ.ws para consultas por CNPJ conhecido e LocalizaCNPJ para pesquisa segmentada, quando há chave Free configurada. Nenhum dado Equifax é consultado por API.
 
 ## O que tem dentro
 
 | Menu | O que faz |
 |---|---|
 | Dashboard | Funil cumulativo, alertas (SLA, LGPD, drift, plano B), quentes aguardando ação, soluções e origem |
-| Captura de leads | Formulário com busca real no CNPJ.ws, planilha, lista de CNPJs, webhook do site simulado, base fictícia |
+| Captura de leads | Formulário CNPJ.ws, planilha, lista de CNPJs, pesquisa real com filtros de segmento/cidade/mês de abertura (LocalizaCNPJ), webhook simulado e base fictícia |
 | Tratamento IA | ICP versionado, 7 agentes por lote, ficha com nota decomposta e caminho no grafo, revisão humana, exportação |
 | Fila do BDR | Metas do dia, fila por SLA e nota, oferta, roteiro com copiar, cadência, BANT, correção da IA, agendamento |
 | Carteira | Todos os leads em qualquer etapa; o gestor redistribui |
@@ -32,6 +32,26 @@ uma fila priorizada com roteiro de abordagem. O BDR decide; o resultado do funil
 
 Documentação para a entrega: [Arquitetura](docs/ARQUITETURA.md) · [Estratégia de IA](docs/ESTRATEGIA_IA.md) ·
 [Governança](docs/GOVERNANCA.md) · [Roteiro da demonstração](docs/ROTEIRO_DEMO.md).
+
+## Busca de CNPJs reais por tags
+
+Acesse **Captura de leads → Buscar CNPJs reais**. Configure a chave gratuita da LocalizaCNPJ
+em `LOCALIZA_CNPJ_TOKEN` (Secrets do Streamlit ou `.env`) ou digite-a no formulário durante a sessão.
+
+Exemplo: segmento **Varejo**, cidade **Campinas**, UF **SP**, abertura **Abril/2026**.
+O filtro de segmento é traduzido em atividade econômica da Receita; para máxima precisão, informe
+o código CNAE de 7 dígitos. A consulta aplica os filtros de abertura no servidor, suporta
+paginação por cursor e exporta apenas dados cadastrais empresariais em CSV.
+
+A interface permite selecionar resultados e importá-los, com deduplicação de CNPJ. Como dados
+cadastrais públicos não equivalem a consentimento, o padrão é `sem_base`: avalie
+a base legal em Governança antes de contato. O portal não grava sócios nem dados
+pessoais de contato retornados pelo fornecedor. **Sem chave configurada, a pesquisa
+não retorna dados**: não há substituição silenciosa por base fictícia.
+
+Fonte técnica: <https://api.localizacnpj.com.br/>. O serviço externo exige cadastro e
+possui cota mensal, que pode mudar conforme o provedor. Sem acesso a uma chave válida
+não é possível garantir, neste repositório, que um filtro terá resultados reais.
 
 ## Como rodar localmente
 
@@ -59,6 +79,7 @@ modelos de texto. Testes e estilo:
 | `GEMINI_API_KEY` | Chave do Google Gemini. Sem ela, modo local | vazia |
 | `GEMINI_MODEL` | Modelo do Gemini (leve por padrão) | `gemini-3.1-flash-lite` |
 | `CNPJ_WS_TOKEN` | Token comercial do CNPJ.ws. Sem ele, API pública (3 consultas por minuto) | vazio |
+| `LOCALIZA_CNPJ_TOKEN` | Chave gratuita da LocalizaCNPJ para descobrir CNPJs por atividade, cidade e mês de abertura | vazio |
 | `FULLGUETE_DB_PATH` | Caminho do banco SQLite | `data/fullguete_v2.db` |
 | `FULLGUETE_MODO` | `simulado` (logins de demonstração e base fictícia) ou `real` | `simulado` |
 | `FULLGUETE_LOGINS_DEMO` | Botões de login dos perfis fictícios: `sim`, `nao` ou `auto` (some se houver usuários nos Secrets) | `auto` |
