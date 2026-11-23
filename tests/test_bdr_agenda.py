@@ -181,12 +181,12 @@ def test_telas_streamlit_mostram_gestao_manual_e_agenda(base_carregada):
     gestor_sessao = {k: gestor[k] for k in ("id", "login", "nome", "papel")}
     bdr_sessao = {k: bdr[k] for k in ("id", "login", "nome", "papel")}
     agenda.agendar(lead_id, bdr, "Tarefa interna", "Organizar ação da semana", tempo.daqui(dias=2))
-    app_fila = AppTest.from_file("paginas/fila_bdr.py", default_timeout=30)
+    app_fila = AppTest.from_file(str(Path(__file__).resolve().parent.parent / "paginas" / "fila_bdr.py"), default_timeout=30)
     app_fila.session_state["usuario"] = bdr_sessao
     app_fila.run()
     assert not app_fila.exception, [str(x.message) for x in app_fila.exception]
     assert any("Alterar status" in x.label for x in app_fila.expander)
-    app_crm = AppTest.from_file("paginas/crm_funil.py", default_timeout=30)
+    app_crm = AppTest.from_file(str(Path(__file__).resolve().parent.parent / "paginas" / "crm_funil.py"), default_timeout=30)
     app_crm.session_state["usuario"] = gestor_sessao
     app_crm.run()
     assert not app_crm.exception, [str(x.message) for x in app_crm.exception]
