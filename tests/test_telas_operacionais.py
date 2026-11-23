@@ -36,4 +36,10 @@ def test_crm_renderiza_kanban_interativo_e_ficha(base_carregada):
     _sessao_gestor(app)
     app.run()
     assert not app.exception, [str(x.message) for x in app.exception]
-    assert app.button, "Kanban deve renderizar cartões selecionáveis e ações"
+    cartoes = [botao for botao in app.button if botao.key and botao.key.startswith("crm_abrir_")]
+    assert cartoes, "Os cartões precisam ter botão de abertura."
+    selecionado = int(cartoes[0].key.removeprefix("crm_abrir_"))
+    cartoes[0].click()
+    app.run()
+    assert not app.exception, [str(x.message) for x in app.exception]
+    assert app.session_state["crm_seletor"] == selecionado
