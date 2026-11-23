@@ -11,7 +11,7 @@ import streamlit as st
 import catalogo
 from banco import consultas, repositorio
 from ia import nota
-from nucleo import auth, campanhas_ui, comercial, componentes, crm_operacional, estados, lgpd, tempo, triagem, ui
+from nucleo import agenda_ui, auth, campanhas_ui, comercial, componentes, crm_operacional, estados, gestao_leads, lgpd, tempo, triagem, ui
 
 usuario = st.session_state["usuario"]
 
@@ -228,6 +228,11 @@ with lista:
     linhas = evento.selection.rows if evento and evento.selection else []
     indice = linhas[0] if linhas else 0
     lead_id = int(vis.iloc[indice]["id"])
+    if not linhas:
+        direcionado = st.session_state.pop("fila_abrir_id", None)
+        if direcionado in set(vis["id"]):
+            indice = vis.index.get_loc(vis[vis["id"] == direcionado].index[0])
+            lead_id = int(direcionado)
     st.caption("Clique numa linha para abrir a ficha. A primeira é a mais urgente.")
 
 lead = consultas.lead(lead_id)
@@ -262,6 +267,65 @@ with ficha:
             f"{' · ' + contato['cargo'] if contato.get('cargo') else ''} · {contato.get('email') or 'sem e-mail'} · "
             f"{contato.get('telefone') or 'sem telefone'}"
         )
+
+    st.markdown("#### Gestão manual do lead")
+    st.caption(
+        "Ações do BDR atualizam o status e ficam auditadas. "
+        "Agendar uma tarefa não simula ligação nem avança indevidamente o CRM."
+    )
+    pode_gerir = usuario["papel"] == "gestor" or (
+        usuario["papel"] == "bdr" and lead["responsavel_id"] == usuario["id"]
+    )
+    with st.expander("Alterar status / decisão do BDR", expanded=True):
+        opcoes_status = gestao_leads.opcoes(lead["etapa"])
+        if not pode_gerir:
+            st.info("A alteração de status é permitida ao BDR responsável ou ao gestor.")
+        elif not opcoes_status:
+            st.caption("Esta etapa não permite uma decisão de BDR. Continue a negociação pelo CRM.")
+        else:
+            with st.form(f"bdr_status_{lead_id}"):
+                destino_status = st.selectbox("Novo status", list(opcoes_status))
+                justificativa_status = st.text_area(
+                    "O que motivou esta decisão?",
+                    placeholder="Registre evidências ou contexto comercial. A decisão fica no histórico.",
+                    max_chars=800,
+                )
+                canal_status = st.selectbox(
+                    "Canal do contato realizado (somente para Em contato)",
+                    ["", "Ligação", "E-mail", "WhatsApp"],
+                )
+                resultado_status = st.selectbox(
+                    "Resultado do contato (somente para Em contato)",
+                    ["", *comercial.RESULTADOS],
+                )
+                motivo_status = st.selectbox(
+                    "Motivo de descarte/perda (somente nessas etapas)",
+                    ["", *estados.MOTIVOS],
+                )
+                salvar_status = st.form_submit_button("Atualizar status", type="primary")
+            if salvar_status:
+                try:
+                    novo = gestao_leads.mudar_status(
+                        lead_id,
+                        usuario,
+                        destino_status,
+                        justificativa_status,
+                        motivo=motivo_status or None,
+                        canal_contato=canal_status,
+                        resultado_contato=resultado_status,
+                    )
+                except (ValueError, PermissionError, estados.TransicaoInvalida) as erro:
+                    st.error(str(erro))
+                else:
+                    st.session_state["fila_msg"] = f"Status atualizado manualmente para {novo}."
+                    st.rerun()
+            if status_contato != "liberado":
+                st.caption(
+                    "Contato real exige base documentada. Você já pode mover para Em análise BDR, "
+                    "nutrição ou descarte justificado e criar tarefas internas."
+                )
+    if pode_gerir:
+        agenda_ui.ficha(lead_id, usuario, prefixo="bdr")
 
     abas = st.tabs(["Por que este lead", "Oferta", "Roteiro", "Cadência e atividade", "BANT", "Corrigir a IA", "Ações"])
 
@@ -308,7 +372,7 @@ with ficha:
         with st.form(f"atividade_{lead_id}", clear_on_submit=True):
             a, b = st.columns(2)
             tipo = a.selectbox("Tipo", comercial.TIPOS_ATIVIDADE if status_contato == "liberado" else ["Nota"])
-            resultado = b.selectbox("Resultado", comercial.RESULTADOS)
+            resultado = b.selectbox("Resultado (opcional para nota)", ["", *comercial.RESULTADOS])
             anotacao = st.text_area("Anotação", max_chars=1000, placeholder="O que foi conversado.")
             a, b = st.columns([2, 1])
             proxima = a.text_input("Próxima ação", max_chars=180)
@@ -372,6 +436,14 @@ with ficha:
     with abas[6]:
         execs = repositorio.usuarios("executivo")
         ui.rotulo("Qualificar e agendar reunião")
+        if status_contato != "liberado":
+            st.info(
+                "Reunião confirmada exige base legal de contato documentada, primeiro contato registrado "
+                "e Necessidade preenchida no BANT. Para um lembrete ou reunião ainda planejada, "
+                "use 'Agendar retorno, tarefa ou reunião' acima."
+            )
+        elif not lead.get("primeiro_contato_em"):
+            st.info("Registre uma ligação, e-mail ou WhatsApp real antes de qualificar e confirmar a reunião.")
         with st.form(f"qualificar_{lead_id}"):
             a, b = st.columns(2)
             dia = a.date_input("Data da reunião", value=hoje + timedelta(days=2), format="DD/MM/YYYY")
