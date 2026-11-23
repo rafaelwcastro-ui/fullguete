@@ -70,8 +70,8 @@ def _inserir_lead(con: sqlite3.Connection, reg: dict, canal: str, ator: str, cha
     cur = con.execute(
         """INSERT INTO leads (criado_em, atualizado_em, origem, canal, cnpj, chave_dedup, razao_social, nome_fantasia,
                cnae, setor, porte, funcionarios, cidade, uf, site, descricao, situacao_cadastral, interesse,
-               observacao, sinais_simulados, dados_cnpjws, base_ficticia)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               observacao, sinais_simulados, dados_cnpjws, base_ficticia, data_abertura)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (
             momento, momento, empresa["origem"] or ("formulario" if canal == "formulario" else canal),
             canal, empresa["cnpj"] or None, chave, empresa["razao_social"], empresa["nome_fantasia"] or None,
@@ -80,7 +80,7 @@ def _inserir_lead(con: sqlite3.Connection, reg: dict, canal: str, ator: str, cha
             empresa["descricao"] or None, reg.get("situacao_cadastral") or None, empresa["interesse"],
             reg.get("observacao") or None, json.dumps(sinais, ensure_ascii=False),
             json.dumps(reg["dados_cnpjws"], ensure_ascii=False) if reg.get("dados_cnpjws") else None,
-            int(ficticio),
+            int(ficticio), reg.get("data_abertura") or None,
         ),
     )  # fmt: skip
     lead_id = int(cur.lastrowid)
@@ -119,7 +119,7 @@ def receber(registros: list[dict], canal: str, ator: str, ficticio: bool = False
             )  # fmt: skip
             bruto_id = cur.lastrowid
             reg, problemas = limpeza.padronizar(bruto)
-            for extra in ("sinais_simulados", "situacao_cadastral", "dados_cnpjws", "opt_out", "observacao"):
+            for extra in ("sinais_simulados", "situacao_cadastral", "dados_cnpjws", "opt_out", "observacao", "data_abertura"):
                 if extra in bruto:
                     reg[extra] = bruto[extra]
             nome = reg["razao_social"] or reg["cnpj"]
