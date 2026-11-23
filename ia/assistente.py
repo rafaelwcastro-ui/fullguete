@@ -54,7 +54,9 @@ def contexto_lead(lead_id: int | None, usuario: dict | None = None) -> dict | No
         {
             "quando": atividade["registrada_em"],
             "tipo": atividade["tipo"] if atividade["tipo"] in comercial.TIPOS_ATIVIDADE else "Outro",
-            "resultado": atividade["resultado"] if atividade["resultado"] in comercial.RESULTADOS else "Não padronizado",
+            "resultado": atividade["resultado"]
+            if atividade["resultado"] in comercial.RESULTADOS
+            else "Não padronizado",
         }
         for atividade in consultas.atividades(lead_id)[:5]
     ]
@@ -71,7 +73,9 @@ def contexto_lead(lead_id: int | None, usuario: dict | None = None) -> dict | No
             "solucoes": [catalogo.nome(s) for s in oportunidade.get("solucoes", [])],
             "valor_mensal_estimado": oportunidade.get("valor_mensal"),
             "previsao_fechamento": oportunidade.get("previsao_fechamento"),
-        } if oportunidade else None,
+        }
+        if oportunidade
+        else None,
         "nota_final": lead.get("nota_final"),
         "classificacao": lead.get("classificacao"),
         "solucao_principal": catalogo.nome(lead.get("solucao_principal") or ""),
@@ -89,22 +93,25 @@ def _local(pergunta: str, lead: dict | None, fontes: list[tuple[dict, float]]) -
         atividades = lead["atividades_recentes"]
         if not atividades:
             return f"Ainda não há atividades registradas para {lead['empresa']}."
-        linhas = [
-            f"- {a['quando'][:10]} · {a['tipo']}: {a['resultado']}"
-            for a in atividades
-        ]
+        linhas = [f"- {a['quando'][:10]} · {a['tipo']}: {a['resultado']}" for a in atividades]
         return f"Últimas atividades registradas de {lead['empresa']}:\n" + "\n".join(linhas)
     if lead and any(termo in texto for termo in ("proxima acao", "proximo passo", "o que fazer")):
         etapa = lead["etapa"]
         retorno = lead.get("retorno_em")
         if retorno:
-            return (f"{lead['empresa']} está na etapa {etapa}. Há retorno registrado para {retorno[:10]}. "
-                    "Confira a tarefa e o histórico na ficha comercial antes de contatar.")
+            return (
+                f"{lead['empresa']} está na etapa {etapa}. Há retorno registrado para {retorno[:10]}. "
+                "Confira a tarefa e o histórico na ficha comercial antes de contatar."
+            )
         if not lead["atividades_recentes"]:
-            return (f"{lead['empresa']} está na etapa {etapa}, sem atividades registradas. "
-                    "Valide o produto sugerido e realize a primeira abordagem autorizada.")
-        return (f"{lead['empresa']} está na etapa {etapa}. Revise a última atividade registrada "
-                "e defina o próximo contato ou avanço no funil.")
+            return (
+                f"{lead['empresa']} está na etapa {etapa}, sem atividades registradas. "
+                "Valide o produto sugerido e realize a primeira abordagem autorizada."
+            )
+        return (
+            f"{lead['empresa']} está na etapa {etapa}. Revise a última atividade registrada "
+            "e defina o próximo contato ou avanço no funil."
+        )
     if lead and ("reuniao" in texto or "prepare" in texto or "preparar" in texto):
         perguntas = "\n".join(f"- {p}" for p in lead["perguntas"]) or "- Confirmar a dor principal"
         objecoes = "\n".join(f"- {o['objecao']} Resposta: {o['resposta']}" for o in lead["objecoes"][:2])
