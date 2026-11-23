@@ -74,5 +74,7 @@ def test_assistente_local_usa_o_catalogo(base_carregada):
     r = assistente.responder("Qual solução Equifax resolve chargeback?")
     assert r["motor"] == "local" and "Kount Gestão de Chargeback" in r["texto"]
     lead_id = _lead_na_fila()
-    prep = assistente.responder("Prepare-me para a reunião", lead_id)
+    responsavel_id = consultas.lead(lead_id)["responsavel_id"]
+    bdr = next(u for u in repositorio.usuarios("bdr") if u["id"] == responsavel_id)
+    prep = assistente.responder("Prepare-me para a reunião", lead_id, usuario=bdr)
     assert "Reunião com" in prep["texto"] and "titular@teste.exemplo" not in prep["texto"]

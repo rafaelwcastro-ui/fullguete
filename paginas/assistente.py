@@ -26,7 +26,9 @@ opcoes = {0: "Nenhum lead"} | {int(r.id): f"#{r.id} {r.nome_fantasia or r.razao_
 lead_id = st.selectbox("Lead em contexto", list(opcoes), format_func=opcoes.get)
 empresa = opcoes[lead_id].split(" · ")[0].split(" ", 1)[1] if lead_id else "[empresa]"
 
-historico = st.session_state.setdefault("assistente_historico", [])
+# O histórico do lead não pode aparecer nem ser reutilizado no chat de outro lead/usuário.
+chave_historico = assistente.chave_conversa(usuario["id"], lead_id)
+historico = st.session_state.setdefault(chave_historico, [])
 
 ui.rotulo("Exemplos")
 cols = st.columns(len(assistente.EXEMPLOS))
@@ -48,7 +50,7 @@ if pergunta:
     with st.chat_message("user"):
         st.markdown(pergunta)
     with st.chat_message("assistant"), st.spinner("Pensando..."):
-        r = assistente.responder(pergunta, lead_id or None, historico[:-1])
+        r = assistente.responder(pergunta, lead_id or None, historico[:-1], usuario=usuario)
         if r.get("aviso"):
             st.caption(r["aviso"])
         st.markdown(r["texto"])
@@ -57,5 +59,5 @@ if pergunta:
     historico.append({"papel": "assistente", "texto": r["texto"], "rodape": rodape})
 
 if historico and st.button("Limpar conversa"):
-    st.session_state["assistente_historico"] = []
+    st.session_state[chave_historico] = []
     st.rerun()
