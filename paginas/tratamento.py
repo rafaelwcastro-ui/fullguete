@@ -144,13 +144,14 @@ with aba_todos:
             ]
         st.metric("Leads encontrados", len(todos))
         st.dataframe(
-            todos[["id", "cnpj", "razao_social", "tags", "etapa", "responsavel", "nota_final", "solucao_principal"]],
+            todos[["id", "cnpj", "razao_social", "data_abertura", "tags", "etapa", "responsavel", "nota_final", "solucao_principal"]],
             hide_index=True,
             width="stretch",
             column_config={
                 "id": st.column_config.NumberColumn("ID"),
                 "cnpj": "CNPJ",
                 "razao_social": "Empresa",
+                "data_abertura": "Abertura",
                 "tags": "Campanhas",
                 "etapa": "Etapa atual",
                 "responsavel": "BDR",
