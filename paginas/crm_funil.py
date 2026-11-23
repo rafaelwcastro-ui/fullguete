@@ -137,9 +137,7 @@ if lead is None:
     st.stop()
 opp = consultas.oportunidade(lead_id) or {}
 st.markdown(f"### {lead['nome_fantasia'] or lead['razao_social']}")
-tags_lead = crm_operacional.texto_valido(
-    funil.loc[funil["id"] == lead_id, "tags"].iloc[0]
-)
+tags_lead = crm_operacional.texto_valido(funil.loc[funil["id"] == lead_id, "tags"].iloc[0])
 a, b, c, d = st.columns(4)
 a.caption(f"**Etapa:** {lead['etapa']}")
 b.caption(f"**CNPJ:** {lead.get('cnpj') or 'Não informado'}")
@@ -197,11 +195,17 @@ with aba_atividade:
                     raise ValueError("Descreva a atividade ou escolha o resultado.")
                 retorno_iso = (
                     tempo.iso(datetime.combine(retorno_atividade, time(9, 0), tzinfo=tempo.FUSO))
-                    if retorno_atividade else None
+                    if retorno_atividade
+                    else None
                 )
                 comercial.registrar_atividade(
-                    lead_id, usuario, tipo_atividade, resultado_atividade,
-                    anotacao_atividade, proxima_atividade, retorno_iso,
+                    lead_id,
+                    usuario,
+                    tipo_atividade,
+                    resultado_atividade,
+                    anotacao_atividade,
+                    proxima_atividade,
+                    retorno_iso,
                 )
             except ValueError as erro:
                 st.error(str(erro))
