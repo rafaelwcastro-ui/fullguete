@@ -291,7 +291,10 @@ def tratar(lead_ids: list[int], ator: str, usar_llm: bool | None = None,
                     bdr = ctx.lead.get("responsavel_id") or comercial.escolher_bdr(con)
                     if bdr:
                         comercial.atribuir(con, lead_id, bdr, "agente_supervisor", "Menor fila entre os BDRs")
-                        comercial.criar_cadencia(con, lead_id)
+                        from nucleo import lgpd
+
+                        if lgpd.base_para_contato(con, lead_id):
+                            comercial.criar_cadencia(con, lead_id)
                 repositorio.auditar(con, "agente_supervisor", "decisao_ia", "leads", lead_id,
                                     {"nota_final": final, "classificacao": classe, "destino": etapa,
                                      "solucao": r.solucao_principal.id, "motor": ctx.motor,
