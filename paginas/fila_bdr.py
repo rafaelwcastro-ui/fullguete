@@ -410,16 +410,54 @@ with ficha:
 
     with abas[4]:
         atual = consultas.bant(lead_id) or {}
+        confirmados = consultas.bant_validacoes(lead_id)
+        preenchidos = sum(bool(atual.get(k)) for k in comercial.BANT_CAMPOS)
+        validados = sum(bool(atual.get(k)) and confirmados.get(k, False) for k in comercial.BANT_CAMPOS)
+        st.markdown("**BANT progressivo · preenchimento gradual**")
+        st.progress(preenchidos / 4, text=f"{preenchidos}/4 critérios informados · {validados}/4 confirmados pelo BDR")
+        st.caption(
+            "Nenhum dos quatro critérios precisa estar completo para começar a trabalhar o lead. "
+            "Salve um campo por vez e confirme apenas o que realmente verificou. "
+            "Campos em branco permanecem pendentes."
+        )
+        sugestoes_ia = (res or {}).get("dores_provaveis") or []
+        if sugestoes_ia:
+            st.info(
+                "**Hipótese preliminar da IA — não confirmada:** "
+                + "; ".join(str(item) for item in sugestoes_ia[:3])
+                + ". Verifique com a empresa antes de registrar como Necessidade."
+            )
         with st.form(f"bant_{lead_id}"):
-            valores = {
-                k: st.text_input(rotulo, value=atual.get(k) or "", max_chars=200)
-                for k, rotulo in comercial.BANT_CAMPOS.items()
-            }
-            if st.form_submit_button("Salvar BANT", type="primary"):
-                comercial.salvar_bant(lead_id, usuario, valores)
-                st.session_state["fila_msg"] = "BANT salvo."
+            valores = {}
+            marcacoes = {}
+            for k, rotulo in comercial.BANT_CAMPOS.items():
+                a, b = st.columns([3, 1.4])
+                valores[k] = a.text_input(
+                    rotulo, value=atual.get(k) or "", max_chars=200,
+                    placeholder="A descobrir com o BDR",
+                )
+                marcacoes[k] = b.checkbox(
+                    "Confirmado pelo BDR",
+                    value=bool(atual.get(k)) and confirmados.get(k, False),
+                    key=f"bant_confirmado_{lead_id}_{k}",
+                    help="Marque apenas se essa informação foi confirmada em interação real.",
+                )
+            salvar_bant = st.form_submit_button("Salvar progresso do BANT", type="primary")
+        if salvar_bant:
+            try:
+                comercial.salvar_bant(lead_id, usuario, valores, marcacoes)
+            except (ValueError, PermissionError) as erro:
+                st.error(str(erro))
+            else:
+                st.session_state["fila_msg"] = "Progresso do BANT salvo sem exigir preenchimento completo."
                 st.rerun()
-        st.caption("Orçamento, autoridade, necessidade e prazo. A Necessidade é obrigatória para qualificar.")
+        if not (atual.get("necessidade") or "").strip():
+            st.caption(
+                "Para confirmar uma reunião e transferir ao executivo, registre pelo menos a Necessidade. "
+                "Orçamento, Autoridade e Prazo podem continuar em levantamento."
+            )
+        else:
+            st.caption("Necessidade registrada: os outros critérios podem continuar em levantamento.")
 
     with abas[5]:
         st.caption("Discordou da IA? Escolha o certo e diga por quê. Concordar também conta: mede a qualidade da IA.")
@@ -450,7 +488,8 @@ with ficha:
         if status_contato != "liberado":
             st.info(
                 "Reunião confirmada exige base legal de contato documentada, primeiro contato registrado "
-                "e Necessidade preenchida no BANT. Para um lembrete ou reunião ainda planejada, "
+                "e uma Necessidade registrada. Não exige os quatro critérios completos. "
+                "Para um lembrete ou reunião ainda planejada, "
                 "use 'Agendar retorno, tarefa ou reunião' acima."
             )
         elif not lead.get("primeiro_contato_em"):
