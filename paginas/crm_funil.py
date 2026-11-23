@@ -9,7 +9,7 @@ import streamlit as st
 
 import catalogo
 from banco import consultas, repositorio
-from nucleo import comercial, estados, tempo, ui
+from nucleo import campanhas_ui, comercial, estados, tempo, ui
 
 usuario = st.session_state["usuario"]
 
@@ -29,7 +29,15 @@ elif usuario["papel"] == "executivo":
     if so_meus:
         funil = funil[funil["executivo_id"] == usuario["id"]]
 if funil.empty:
-    st.info("Nenhum lead no funil ainda. Eles entram aqui quando o BDR registra o primeiro contato.")
+    st.info(
+        "Nenhum lead nesta etapa do CRM. Empresas capturadas podem estar em Capturado, "
+        "Retido LGPD ou Fila do BDR. Confira Todos os leads no Tratamento IA."
+    )
+    st.stop()
+
+funil = campanhas_ui.aplicar(funil, "id", "crm_campanha")
+if funil.empty:
+    st.info("Nenhum lead desta campanha chegou ao CRM nesta carteira.")
     st.stop()
 
 valores = consultas.valores_oportunidades()
@@ -62,7 +70,7 @@ for coluna, etapa in zip(colunas, estados.ETAPAS_FUNIL, strict=True):
 
 # ---------- lead selecionado ----------
 st.divider()
-opcoes = {int(r.id): f"#{r.id} {r.empresa} · {r.etapa}" for r in funil.itertuples()}
+opcoes = {int(r.id): f"#{r.id} {r.empresa} · {r.etapa} · {r.tags}" for r in funil.itertuples()}
 padrao = st.session_state.get("crm_lead")
 lead_id = st.selectbox("Abrir lead", list(opcoes), format_func=opcoes.get,
                        index=list(opcoes).index(padrao) if padrao in opcoes else 0)  # fmt: skip
