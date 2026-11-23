@@ -116,14 +116,13 @@ for indice, (coluna, etapa) in enumerate(zip(colunas, estados.ETAPAS_FUNIL, stri
                     st.caption(f"{ui.reais(dinheiro)}/mês")
                 if registro.base_ficticia:
                     st.caption("Dados de demonstração")
-        if len(grupo) > capacidade:
-            if st.button(
-                f"Mostrar mais {min(6, len(grupo) - capacidade)}",
-                key=f"crm_mais_{indice}",
-                width="stretch",
-            ):
-                st.session_state[f"crm_mostrar_{indice}"] = capacidade + 6
-                st.rerun()
+        if len(grupo) > capacidade and st.button(
+            f"Mostrar mais {min(6, len(grupo) - capacidade)}",
+            key=f"crm_mais_{indice}",
+            width="stretch",
+        ):
+            st.session_state[f"crm_mostrar_{indice}"] = capacidade + 6
+            st.rerun()
 
 # ---------- ficha comercial do lead selecionado ----------
 st.divider()
