@@ -250,9 +250,7 @@ with aba_opp:
     ids_exec = [e["id"] for e in execs]
     with st.form(f"opp_{lead_id}"):
         ids_catalogo = [sol["id"] for sol in catalogo.solucoes()]
-        sugestoes = opp.get("solucoes") or (
-            [lead["solucao_principal"]] if lead["solucao_principal"] else []
-        )
+        sugestoes = opp.get("solucoes") or ([lead["solucao_principal"]] if lead["solucao_principal"] else [])
         solucoes = st.multiselect(
             "Soluções propostas (catálogo Equifax)",
             ids_catalogo,
