@@ -76,6 +76,8 @@ def registrar_atividade(lead_id: int, usuario: dict, tipo: str, resultado: str, 
     """Grava a atividade. O primeiro contato tira o lead da fila e marca o passo da cadência."""
     from banco.conexao import conectar
 
+    from . import lgpd
+
     if tipo not in TIPOS_ATIVIDADE:
         raise ValueError("Tipo de atividade inválido.")
     if not (anotacao.strip() or resultado):
@@ -85,6 +87,11 @@ def registrar_atividade(lead_id: int, usuario: dict, tipo: str, resultado: str, 
         lead = _lead(con, lead_id)
         if lead["opt_out"]:
             raise ValueError("O titular pediu opt-out. Não registre novos contatos.")
+        if tipo in TIPOS_CONTATO and not lgpd.base_para_contato(con, lead_id):
+            raise ValueError(
+                "Contato pendente de base legal. O lead pode ser analisado, pontuado e receber notas internas; "
+                "para ligar ou enviar mensagens, documente a base legal em Governança & LGPD."
+            )
         con.execute(
             "INSERT INTO atividades (lead_id, usuario_id, registrada_em, tipo, resultado, anotacao, proxima_acao, "
             "retorno_em) VALUES (?,?,?,?,?,?,?,?)",
@@ -114,7 +121,14 @@ def registrar_atividade(lead_id: int, usuario: dict, tipo: str, resultado: str, 
 def marcar_passo(passo_id: int, feito: bool, usuario: dict) -> None:
     from banco.conexao import conectar
 
+    from . import lgpd
+
     with conectar() as con:
+        passo = con.execute("SELECT lead_id FROM cadencia_passos WHERE id=?", (passo_id,)).fetchone()
+        if passo is None:
+            raise ValueError("Passo de cadência não encontrado.")
+        if feito and not lgpd.base_para_contato(con, passo["lead_id"]):
+            raise ValueError("Cadência de contato pendente de base legal documentada.")
         con.execute("UPDATE cadencia_passos SET feito_em=? WHERE id=?", (tempo.iso() if feito else None, passo_id))
 
 
