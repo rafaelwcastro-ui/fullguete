@@ -48,7 +48,7 @@ def test_exportar_e_excluir_titular(base_carregada):
     assert not consultas.auditoria(str(lead_id))[lambda d: d["acao"] == "exclusao_titular"].empty
 
 
-def test_regularizar_lead_retido(base_carregada):
+def test_regularizar_base_de_contato_sem_reter_e_sem_reprocessar(base_carregada):
     reg = {
         "razao_social": "Fictícia Sem Base",
         "descricao": "Vende a prazo para empresas com boleto.",
@@ -56,12 +56,16 @@ def test_regularizar_lead_retido(base_carregada):
     }
     lead_id = ingestao.receber([reg], "formulario", "teste").criados[0]
     orquestrador.tratar([lead_id], "teste", usar_llm=False)
-    assert consultas.lead(lead_id)["etapa"] == estados.RETIDO
+    antes = consultas.lead(lead_id)
+    assert antes["etapa"] != estados.RETIDO
+    assert lgpd.status_contato(lead_id) == "pendente"
     with pytest.raises(ValueError):
         lgpd.regularizar(lead_id, "gestor", "consentimento", "")
-    lgpd.regularizar(lead_id, "gestor", "legitimo_interesse", "Contato B2B pelo site institucional")
-    orquestrador.tratar([lead_id], "teste", usar_llm=False)
-    assert consultas.lead(lead_id)["etapa"] != estados.RETIDO
+    lgpd.regularizar(lead_id, "gestor", "legitimo_interesse", "Finalidade e balanceamento documentados")
+    assert lgpd.status_contato(lead_id) == "liberado"
+    depois = consultas.lead(lead_id)
+    assert depois["etapa"] == antes["etapa"]
+    assert depois["nota_final"] == antes["nota_final"]
 
 
 def test_psi():
