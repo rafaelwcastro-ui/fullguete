@@ -12,7 +12,7 @@ import prompts
 from banco import consultas, repositorio
 from dados.features import PORTES
 from ia import nota, orquestrador, provedor
-from nucleo import componentes, estados, revisao, ui
+from nucleo import campanhas_ui, componentes, estados, revisao, ui
 
 usuario = st.session_state["usuario"]
 
@@ -23,7 +23,9 @@ ui.cabecalho(
     secao="Prospecção",
 )
 
-aba_lote, aba_lista, aba_revisao, aba_icp = st.tabs(["Tratar leads", "Leads tratados", "Revisão humana", "ICP"])
+aba_lote, aba_todos, aba_lista, aba_revisao, aba_icp = st.tabs(
+    ["Tratar leads", "Todos os leads", "Leads tratados", "Revisão humana", "ICP"]
+)
 
 # ---------- ICP ----------
 with aba_icp:
@@ -61,6 +63,11 @@ with aba_icp:
 with aba_lote:
     capturados = consultas.leads([estados.CAPTURADO])
     reprocessaveis = consultas.leads(sorted(orquestrador.TRATAVEIS - {estados.CAPTURADO}))
+    candidatos = pd.concat([capturados, reprocessaveis], ignore_index=True)
+    if not candidatos.empty:
+        candidatos = campanhas_ui.aplicar(candidatos, "id", "tratamento_filtro_campanha")
+        capturados = capturados[capturados["id"].isin(candidatos["id"])]
+        reprocessaveis = reprocessaveis[reprocessaveis["id"].isin(candidatos["id"])]
     tem_llm = provedor.disponivel()
     a, b, c = st.columns(3)
     a.metric("Aguardando tratamento", len(capturados))
@@ -113,9 +120,52 @@ with aba_lote:
         lote = st.selectbox("Lote", list(rotulos_lote), index=indice, format_func=rotulos_lote.get)
         componentes.linha_etapas(orquestrador.etapas_do_lote(lote))
 
+# ---------- todos os leads, em todas as etapas ----------
+with aba_todos:
+    st.caption(
+        "Todos os leads registrados, inclusive Capturados, Retidos LGPD, em Nutrição, "
+        "Revisão, Fila do BDR e CRM. O bloqueio de contato não apaga o registro."
+    )
+    todos = consultas.leads()
+    if todos.empty:
+        st.info("Nenhum lead importado ainda. Volte à Captura e clique em Importar empresas.")
+    else:
+        todos = campanhas_ui.aplicar(todos, "id", "todos_campanha")
+        a, b = st.columns([1.5, 2])
+        filtro_estado = a.multiselect("Situação do lead", sorted(todos["etapa"].unique()))
+        texto = b.text_input("Localizar empresa ou CNPJ", max_chars=80)
+        if filtro_estado:
+            todos = todos[todos["etapa"].isin(filtro_estado)]
+        if texto:
+            chave = texto.casefold()
+            todos = todos[
+                todos["razao_social"].fillna("").str.casefold().str.contains(chave, regex=False)
+                | todos["cnpj"].fillna("").str.contains(texto, regex=False)
+            ]
+        st.metric("Leads encontrados", len(todos))
+        st.dataframe(
+            todos[
+                ["id", "cnpj", "razao_social", "tags", "etapa", "responsavel", "nota_final", "solucao_principal"]
+            ],
+            hide_index=True, width="stretch",
+            column_config={
+                "id": st.column_config.NumberColumn("ID"),
+                "cnpj": "CNPJ", "razao_social": "Empresa", "tags": "Campanhas",
+                "etapa": "Etapa atual", "responsavel": "BDR", "nota_final": "Nota",
+                "solucao_principal": "Solução",
+            },
+        )
+        if not todos.empty:
+            st.caption(
+                "Retido LGPD = cadastro encontrado e preservado, mas contato bloqueado. "
+                "Somente leads liberados, classificados e atribuídos aparecem na Fila do BDR."
+            )
+
 # ---------- leads tratados ----------
 with aba_lista:
     tratados = consultas.tratados()
+    if not tratados.empty:
+        tratados = campanhas_ui.aplicar(tratados, "lead_id", "tratados_campanha")
     if tratados.empty:
         st.info("Nenhum lead tratado ainda.")
     else:
@@ -135,9 +185,9 @@ with aba_lista:
             vis = vis[vis["classificacao"].isin(filtro_classe)]
         if filtro_uf:
             vis = vis[vis["uf"].isin(filtro_uf)]
-        colunas = ["lead_id", "empresa", "nota_final", "classificacao", "solucao", "etapa", "motor", "uf"]
+        colunas = ["lead_id", "empresa", "tags", "nota_final", "classificacao", "solucao", "etapa", "motor", "uf"]
         st.dataframe(vis[colunas], hide_index=True, width="stretch", column_config={
-            "lead_id": st.column_config.NumberColumn("#", width="small"), "empresa": "Empresa",
+            "lead_id": st.column_config.NumberColumn("#", width="small"), "empresa": "Empresa", "tags": "Campanhas",
             "nota_final": st.column_config.ProgressColumn("Nota", min_value=0, max_value=100, format="%.0f"),
             "classificacao": "Classe", "solucao": "Solução principal", "etapa": "Etapa", "motor": "Motor", "uf": "UF",
         })  # fmt: skip
