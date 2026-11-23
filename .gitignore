@@ -9,6 +9,7 @@ __pycache__/
 # Segredos: nunca vão para o Git
 .env
 .streamlit/secrets.toml
+.streamlit/secrets*.toml
 .streamlit/credenciais_locais.txt
 
 # Bancos locais
@@ -23,3 +24,6 @@ modelos/metricas.json
 Mtariais FGV/
 material_fgv/
 PROMPT_Fullguete_Claude_Code.md.pdf
+
+# Arquivos pessoais na pasta do projeto
+*.pdf

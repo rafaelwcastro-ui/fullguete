@@ -38,6 +38,16 @@ def simulado() -> bool:
     return modo() == "simulado"
 
 
+def logins_demo() -> bool:
+    """Botões de login dos perfis fictícios. 'auto': só aparecem quando não há usuários nos Secrets."""
+    valor = ler("FULLGUETE_LOGINS_DEMO", "auto").lower()
+    if valor in ("sim", "1", "true"):
+        return simulado()
+    if valor in ("nao", "não", "0", "false"):
+        return False
+    return simulado() and not usuarios_secrets()
+
+
 def cenario_demo_automatico() -> bool:
     """No modo simulado, monta um mês fictício de operação na primeira abertura (desligue com 'nao')."""
     return ler("FULLGUETE_CENARIO_DEMO", "sim").lower() not in ("nao", "não", "0", "false")

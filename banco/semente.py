@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import secrets
 from datetime import UTC, datetime, timedelta
 
 from dados import base_ficticia
@@ -33,7 +34,8 @@ def _garantir_usuario(con, login: str, nome: str, papel: str, senha_hash: str, m
     return True
 
 
-def garantir_base(simulado: bool, usuarios_secrets: dict[str, dict] | None = None) -> dict:
+def garantir_base(simulado: bool, usuarios_secrets: dict[str, dict] | None = None, logins_demo: bool = True) -> dict:
+    """logins_demo=False mantém os perfis fictícios (a fila precisa de BDRs), mas sem senha utilizável."""
     resumo = {"usuarios_novos": 0, "historico_novo": 0}
     with conectar() as con:
         for chave, valor in repositorio.CONFIG_PADRAO.items():
@@ -46,6 +48,13 @@ def garantir_base(simulado: bool, usuarios_secrets: dict[str, dict] | None = Non
         if simulado:
             for u in base_ficticia.USUARIOS_DEMO:
                 linha = con.execute("SELECT senha_hash FROM usuarios WHERE login=?", (u["login"],)).fetchone()
+                if not logins_demo:
+                    # Portal público: ninguém entra pelos perfis fictícios. A senha vira um valor aleatório.
+                    trancada = auth.gerar_hash(secrets.token_urlsafe(24), ITERACOES_DEMO)
+                    resumo["usuarios_novos"] += _garantir_usuario(
+                        con, u["login"], u["nome"], u["papel"], trancada, u["meta_contatos_dia"], True
+                    )
+                    continue
                 if linha and auth.verificar(base_ficticia.SENHA_DEMO, linha["senha_hash"]):
                     con.execute("UPDATE usuarios SET ativo=1 WHERE login=?", (u["login"],))
                     continue

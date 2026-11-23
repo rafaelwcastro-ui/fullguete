@@ -61,6 +61,7 @@ modelos de texto. Testes e estilo:
 | `CNPJ_WS_TOKEN` | Token comercial do CNPJ.ws. Sem ele, API pública (3 consultas por minuto) | vazio |
 | `FULLGUETE_DB_PATH` | Caminho do banco SQLite | `data/fullguete_v2.db` |
 | `FULLGUETE_MODO` | `simulado` (logins de demonstração e base fictícia) ou `real` | `simulado` |
+| `FULLGUETE_LOGINS_DEMO` | Botões de login dos perfis fictícios: `sim`, `nao` ou `auto` (some se houver usuários nos Secrets) | `auto` |
 | `FULLGUETE_CENARIO_DEMO` | No modo simulado, monta um mês fictício de operação na primeira abertura (`sim` ou `nao`) | `sim` |
 
 As variáveis podem ficar no `.env` (local, fora do Git) ou nos Secrets do Streamlit Cloud. Nenhuma chave fica no
@@ -77,7 +78,9 @@ A tela de login mostra um botão para cada perfil. Também dá para entrar com u
 | BDR | `bdr.ana`, `bdr.bruno`, `bdr.carla` |
 | Executivo de contas | `executivo` |
 
-No modo real esses logins ficam desativados. Usuários reais vêm dos Secrets, só com o hash da senha:
+Num link público, use `FULLGUETE_LOGINS_DEMO = "nao"` (no padrão `auto`, os botões somem sempre que houver
+usuários em `[usuarios]` nos Secrets). Os perfis fictícios continuam existindo para receber a distribuição de
+leads, mas sem senha utilizável. No modo real esses logins ficam desativados. Usuários reais vêm dos Secrets, só com o hash da senha:
 
 ```toml
 [usuarios.maria]

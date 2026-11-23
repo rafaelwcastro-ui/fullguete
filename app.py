@@ -20,8 +20,8 @@ ui.aplicar_css()
 
 
 @st.cache_resource(show_spinner="Preparando a base de demonstração...")
-def _preparar_base(modo: str) -> dict:
-    resumo = semente.garantir_base(modo == "simulado", config.usuarios_secrets())
+def _preparar_base(modo: str, logins_demo: bool) -> dict:
+    resumo = semente.garantir_base(modo == "simulado", config.usuarios_secrets(), config.logins_demo())
     if modo == "simulado" and config.cenario_demo_automatico() and repositorio.contar("leads") == 0:
         from dados import cenario_demo
 
@@ -29,11 +29,11 @@ def _preparar_base(modo: str) -> dict:
     return resumo
 
 
-_preparar_base(config.modo())
+_preparar_base(config.modo(), config.logins_demo())
 
 usuario = auth.exigir_login(
     repositorio.usuarios_para_login(),
-    semente.usuarios_demonstracao() if config.simulado() else [],
+    semente.usuarios_demonstracao() if config.logins_demo() else [],
     logo=str(config.RAIZ / "assets" / "logo.png"),
 )
 

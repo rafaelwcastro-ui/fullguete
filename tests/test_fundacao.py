@@ -121,3 +121,12 @@ def test_detecta_segmento_e_sinais_coerentes():
     f = features.calcular(lead)
     assert f["segmento"] == "atacado_distribuicao"
     assert {"vende_prazo_pj", "inadimplencia"} <= set(f["sinais"])
+
+
+def test_portal_publico_tranca_os_perfis_ficticios(base_carregada):
+    semente.garantir_base(simulado=True, logins_demo=False)
+    usuarios = repositorio.usuarios_para_login()
+    assert auth.autenticar(usuarios, "gestor", base_ficticia.SENHA_DEMO) is None
+    assert len(repositorio.usuarios("bdr")) == 3  # continuam ativos para receber a distribuição
+    semente.garantir_base(simulado=True, logins_demo=True)
+    assert auth.autenticar(repositorio.usuarios_para_login(), "gestor", base_ficticia.SENHA_DEMO)

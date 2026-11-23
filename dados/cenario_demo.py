@@ -215,7 +215,7 @@ def reiniciar(ator: str) -> dict:
 
     conexao._migrados.discard(str(caminho.resolve()))
     caminho.unlink(missing_ok=True)
-    semente.garantir_base(True, config.usuarios_secrets())
+    semente.garantir_base(True, config.usuarios_secrets(), config.logins_demo())
     return montar(ator)
 
 
