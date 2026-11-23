@@ -35,3 +35,23 @@ CREATE TABLE IF NOT EXISTS buscas_leads (
     PRIMARY KEY (busca_id, lead_id)
 );
 CREATE INDEX IF NOT EXISTS idx_buscas_leads_lead ON buscas_leads(lead_id);
+
+-- Vínculo recuperável de importações CNPJá realizadas antes de existir a tag.
+-- Os filtros originais NÃO estavam gravados e não são inventados.
+INSERT INTO buscas_prospeccao
+    (tag, provedor, segmento, cidade, uf, ano, mes, cnaes, filtros_json,
+     resultados_json, total_fonte, criada_em, atualizada_em, criada_por)
+SELECT '#cnpja-importacoes-anteriores-01', 'cnpja', 'Histórico anterior',
+       'Não informado', '', 0, 0, '', '{}', '[]', 0,
+       MIN(recebido_em), MAX(recebido_em), 'migracao'
+FROM leads_brutos
+WHERE origem='cnpja' AND lead_id IS NOT NULL
+HAVING COUNT(*) > 0;
+
+INSERT OR IGNORE INTO buscas_leads (busca_id, lead_id, associado_em)
+SELECT s.id, b.lead_id, MIN(b.recebido_em)
+FROM leads_brutos b
+CROSS JOIN buscas_prospeccao s
+WHERE b.origem='cnpja' AND b.lead_id IS NOT NULL
+  AND s.tag='#cnpja-importacoes-anteriores-01'
+GROUP BY s.id, b.lead_id;
