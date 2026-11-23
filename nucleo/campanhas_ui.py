@@ -14,18 +14,17 @@ def aplicar(df: pd.DataFrame, coluna: str, chave: str) -> pd.DataFrame:
     if df.empty:
         return df
     autorizados = {int(i) for i in df[coluna].tolist()}
-    disponiveis = [
-        b for b in prospeccao.listar()
-        if autorizados.intersection(prospeccao.ids_leads(b["id"]))
-    ]
+    disponiveis = [b for b in prospeccao.listar() if autorizados.intersection(prospeccao.ids_leads(b["id"]))]
     if not disponiveis:
         st.caption("Nenhuma campanha vinculada aos leads deste painel.")
         return df
     rotulos = {None: "Todas as campanhas"}
     rotulos.update({b["id"]: b["tag"] for b in disponiveis})
     selecionada = st.selectbox(
-        "Campanha / tag de origem", list(rotulos),
-        format_func=rotulos.get, key=chave,
+        "Campanha / tag de origem",
+        list(rotulos),
+        format_func=rotulos.get,
+        key=chave,
     )
     if selecionada is not None:
         return prospeccao.filtrar_dataframe(df, selecionada, coluna)
