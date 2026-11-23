@@ -87,9 +87,7 @@ def test_sem_evidencia_real_resulta_revisao_sem_apagar_score(base_carregada):
 
 
 def test_erro_sistemico_gemini_nao_repete_chamadas_e_conserva_leads(base_carregada, monkeypatch):
-    ids = [
-        _real(f"MERCADO TESTE {i} LTDA", "") for i in range(6)
-    ]
+    ids = [_real(f"MERCADO TESTE {i} LTDA", "") for i in range(6)]
     chamadas = []
     monkeypatch.setattr(provedor, "disponivel", lambda: True)
 
@@ -144,15 +142,11 @@ def test_migracao_resgata_so_descartes_plano_b_automaticos(base_carregada):
     assert consultas.lead(principal)["etapa"] == estados.REVISAO
     assert consultas.lead(manual)["etapa"] == estados.DESCARTADO
     assert consultas.lead(opt_out)["etapa"] == estados.DESCARTADO
-    assert "migracao_plano_b_005" in [
-        h["ator"] for h in consultas.historico_etapas(principal)
-    ]
+    assert "migracao_plano_b_005" in [h["ator"] for h in consultas.historico_etapas(principal)]
 
 
 def test_base_de_contato_pendente_nao_aparece_como_problema(base_carregada):
-    reg, problemas = limpeza.padronizar(
-        {"razao_social": "Empresa CNPJ Real", "cnpj": "11222333000181"}
-    )
+    reg, problemas = limpeza.padronizar({"razao_social": "Empresa CNPJ Real", "cnpj": "11222333000181"})
     assert reg["base_legal"] == "sem_base"
     assert "Sem consentimento nem base legal" not in problemas
     lead_id = _real()
@@ -166,9 +160,7 @@ def test_crm_exibe_pre_funil_de_cnpjs_reais(base_carregada):
     orquestrador.tratar([lead_id], "gestor", usar_llm=False)
     gestor = repositorio.usuarios("gestor")[0]
     app = AppTest.from_file(str(ROOT / "paginas" / "crm_funil.py"), default_timeout=30)
-    app.session_state["usuario"] = {
-        k: gestor[k] for k in ("id", "login", "nome", "papel")
-    }
+    app.session_state["usuario"] = {k: gestor[k] for k in ("id", "login", "nome", "papel")}
     app.run()
     assert not app.exception, [str(x.message) for x in app.exception]
     assert any("Pré-funil" in str(m.value) for m in app.markdown)
