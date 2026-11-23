@@ -6,6 +6,8 @@ Cada item do menu vive em paginas/.
 
 from __future__ import annotations
 
+import json
+
 import streamlit as st
 
 from banco import repositorio, semente
@@ -20,7 +22,8 @@ ui.aplicar_css()
 
 
 @st.cache_resource(show_spinner="Preparando a base de demonstração...")
-def _preparar_base(modo: str, logins_demo: bool) -> dict:
+def _preparar_base(modo: str, logins_demo: bool, assinatura_usuarios: str) -> dict:
+    # assinatura_usuarios entra só na chave do cache: se os Secrets mudarem, os usuários são sincronizados de novo.
     resumo = semente.garantir_base(modo == "simulado", config.usuarios_secrets(), config.logins_demo())
     if modo == "simulado" and config.cenario_demo_automatico() and repositorio.contar("leads") == 0:
         from dados import cenario_demo
@@ -29,7 +32,7 @@ def _preparar_base(modo: str, logins_demo: bool) -> dict:
     return resumo
 
 
-_preparar_base(config.modo(), config.logins_demo())
+_preparar_base(config.modo(), config.logins_demo(), json.dumps(config.usuarios_secrets(), sort_keys=True, default=str))
 
 usuario = auth.exigir_login(
     repositorio.usuarios_para_login(),
