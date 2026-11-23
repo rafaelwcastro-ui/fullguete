@@ -165,3 +165,34 @@ def concluir(compromisso_id: int, usuario: dict, novo_status: str) -> None:
             con, usuario["login"], "agenda_status", "leads", compromisso["lead_id"],
             {"compromisso_id": compromisso_id, "status": novo_status},
         )
+
+
+def registrar_reuniao_passagem(con, lead_id: int, usuario: dict, executivo_id: int, quando: str, observacao: str) -> int:
+    """Integra a qualificação existente à agenda na mesma transação SQL."""
+    existente = con.execute(
+        """SELECT id FROM agenda_compromissos
+           WHERE lead_id=? AND tipo='Reunião confirmada' AND inicio_em=? AND status='Pendente'""",
+        (lead_id, quando),
+    ).fetchone()
+    if existente:
+        return int(existente["id"])
+    executivo = con.execute(
+        "SELECT id FROM usuarios WHERE id=? AND papel='executivo' AND ativo=1",
+        (executivo_id,),
+    ).fetchone()
+    if executivo is None:
+        raise ValueError("Selecione um executivo ativo para a reunião.")
+    momento = tempo.iso()
+    cur = con.execute(
+        """INSERT INTO agenda_compromissos
+           (lead_id, responsavel_id, criado_por, tipo, titulo, descricao, inicio_em, criado_em, atualizado_em)
+           VALUES (?,?,?,?,?,?,?,?,?)""",
+        (lead_id, executivo_id, usuario["id"], "Reunião confirmada",
+         "Reunião comercial com executivo de contas", observacao.strip(), quando, momento, momento),
+    )
+    _sincronizar_proxima_acao(con, lead_id)
+    repositorio.auditar(
+        con, usuario["login"], "agenda_reuniao_confirmada", "leads", lead_id,
+        {"compromisso_id": cur.lastrowid, "executivo_id": executivo_id, "quando": quando},
+    )
+    return int(cur.lastrowid)
