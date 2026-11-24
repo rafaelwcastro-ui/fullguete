@@ -49,6 +49,18 @@ def migrar(con: sqlite3.Connection) -> int:
         con.executescript(arq.read_text(encoding="utf-8"))
         con.execute("INSERT INTO esquema_versao VALUES (?, ?, ?)", (numero, agora(), arq.name))
         versao = numero
+    # Compatibilidade não destrutiva para bases criadas antes do BANT progressivo.
+    # A tabela pode não existir mesmo em instalações com esquema_versao preenchida.
+    con.execute(
+        """CREATE TABLE IF NOT EXISTS bant_validacoes (
+            lead_id INTEGER NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+            campo TEXT NOT NULL CHECK (campo IN ('orcamento', 'autoridade', 'necessidade', 'prazo')),
+            confirmado INTEGER NOT NULL DEFAULT 0 CHECK (confirmado IN (0, 1)),
+            atualizado_em TEXT NOT NULL,
+            usuario_id INTEGER REFERENCES usuarios(id),
+            PRIMARY KEY (lead_id, campo)
+        )"""
+    )
     con.commit()
     return versao
 
