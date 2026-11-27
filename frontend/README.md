@@ -19,4 +19,13 @@ Next.js App Router, React, TypeScript, Tailwind 4, Lucide, Recharts. Configuraç
 Não publicar este frontend como produção. Não incluir dados de clientes ou chaves em JavaScript. Antes de integrar, definir API Python autenticada (por exemplo FastAPI), testar autorização por perfil e escopo, proteger dados e aplicar o mesmo serviço de transição e regras LGPD existente. Preservar arquivos operacionais e contratos. Somente substituir a interface anterior após testes e homologação. A persistência SQLite no Streamlit Cloud é efêmera, conforme README principal; não migrar dados sem backup e estratégia validada.
 
 ## Direção visual aprovada
-Menu compacto com degradê verde–ciano, faixa superior luminosa, cartões quase pretos e navegação demonstrativa por módulos. Prospecção, Central de trabalho, CRM, Analytics e Administração são acessíveis na prévia; não há gravação nem chamadas a APIs. Filtros e ficha local usam apenas os exemplos. Os sparklines são decorativos, não medidas de tendência. A autenticação do Streamlit não é compartilhada com o Next.js.
+Menu compacto com degradê verde–ciano, faixa superior luminosa, cartões quase pretos e navegação demonstrativa por módulos. Prospecção, Central de trabalho, CRM, Analytics e Administração são acessíveis na prévia; não há gravação nem chamadas a APIs. Filtros e ficha local usam apenas os exemplos. Os sparklines representam os valores ilustrativos do período selecionado. A autenticação do Streamlit não é compartilhada com o Next.js.
+
+## Contrato de leitura (primeiro passo da integração)
+Em `integration/`, o exportador abre uma cópia SQLite em modo somente leitura, filtra exclusivamente leads fictícios e exporta indicadores agregados por coorte de criação, sem nomes ou CNPJs. Não executa migrações. Ainda não é uma API nem está conectado à tela.
+
+```sh
+cd frontend/integration
+python -m unittest test_export_dashboard
+python export_dashboard.py --demo-copy /caminho/copia-demo.db --end 2026-11-27
+```
