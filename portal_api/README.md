@@ -1,48 +1,76 @@
-# API Fullguete — incremento 1, homologação somente leitura
+# API Fullguete para homologação local
 
-**Não publicar nem utilizar o arquivo SQLite produtivo.** A API opera em leitura no SQLite e oferece consulta externa opcional. O servidor exige uma cópia separada do SQLite com esquema atualizado e usuários de teste. Por padrão, só lê leads com `base_ficticia=1`. Não há logins especiais: utiliza usuário ativo e verificação PBKDF2 existente. Não copie dados reais para uma instância pública.
+A API mantém leitura como padrão. As gravações exigem um banco fictício criado pelo preparador e uma opção explícita. Use apenas servidores em loopback e credenciais de demonstração.
 
-## Rodar localmente
+## Executar a homologação com escrita
 
-Na raiz, em ambiente virtual isolado:
+Na raiz, em um ambiente Python isolado:
 
 ```sh
 pip install -r requirements.txt -r portal_api/requirements.txt
-python -m unittest -v portal_api.test_readonly
-FULLGUETE_API_DB_COPY=/caminho/copia-demo.db python -m uvicorn portal_api.app:create_app --factory --host 127.0.0.1 --port 8000
+python -m portal_api.sandbox /tmp/fullguete-homologacao
+FULLGUETE_API_DB_COPY=/tmp/fullguete-homologacao/homologacao.db \
+FULLGUETE_API_WRITE_MODE=homologacao \
+python -m uvicorn portal_api.app:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
-## Contrato
+O preparador exige um diretório novo e gera esquema, 100 leads fictícios, usuários e modelos locais. A API recusa o caminho e aliases do banco operacional, bases mistas, perfis reais na base e cópias que não tenham sido preparadas. A API não aplica migrações. Para executar somente leitura, omita `FULLGUETE_API_WRITE_MODE`. Para uso local paralelo, não aponte a configuração do Streamlit para o banco de homologação.
 
-| Método | Rota | Finalidade |
-|---|---|---|
-| POST | /v1/session | Login JSON (login, senha); token opaco de 30 min |
-| DELETE | /v1/session | Revoga token |
-| GET | /v1/me | Identidade e perfil do servidor |
-| GET | /v1/leads | Lista paginada; view=all/queue/triage/review, campaign_id, limit, offset |
-| GET | /v1/leads/{id} | Ficha cadastral mínima e tags |
-| GET | /v1/campaigns | Campanhas com leads visíveis, totais limitados ao escopo |
-| POST | /v1/company-search | Consulta CNPJá opcional para gestor, sem persistência |
+Em outro terminal, rode `cd frontend && npm ci && npm run build && npm run start -- --hostname 127.0.0.1`. Abra `http://127.0.0.1:3000/operacao`. Logins fictícios `gestor`, `bdr.ana`, `bdr.bruno` e `executivo`, com senha `fullguete-demo`.
 
-Envie `Authorization: Bearer <token>` nas leituras. Não persistir o token em localStorage; a integração Next.js mantém a sessão em backend-for-frontend e cookie HttpOnly/Secure/SameSite, sem expor tokens ao navegador. Não há CORS aberto. Esta API local tem sessões em memória e limitador global de login; antes de produção, exigir TLS, armazenamento compartilhado/revogável de sessões, política de rate limit distribuída, auditoria, revisão de autorização e testes de integração.
+## Contratos
 
-## Decisões conservadoras de escopo
+| Rota | Finalidade |
+|---|---|
+| `POST /v1/session` e `DELETE /v1/session` | Sessão opaca revogável de 30 minutos |
+| `GET /v1/me` | Ator atual e disponibilidade de gravação |
+| `GET /v1/leads` e `GET /v1/leads/{id}` | Lista paginada, ficha, versão e indicadores no modo de homologação |
+| `GET /v1/campaigns` | Campanhas com leads visíveis no escopo |
+| `GET /v1/operation-options` | Opções de funil e catálogos usados nos formulários |
+| `GET /v1/search-history` e `GET /v1/search-history/{id}` | Buscas simuladas e resultados reabríveis pelo gestor |
+| `POST /v1/commands` | Comando autenticado com `Idempotency-Key` UUID |
+| `POST /v1/company-search` | Consulta externa opcional do modo somente leitura, desativada sem `FULLGUETE_API_CNPJA_KEY` |
 
-- Gestor: todos os leads fictícios não opt-out; triagem exclusiva.
-- BDR: somente `responsavel_id` próprio; executivo: somente `executivo_id` próprio. Isso é mais restritivo que algumas telas de legado e exige homologação de negócio.
-- Opt-out não aparece nas rotas comerciais; governança própria fica pendente. Base legal pendente permite classificação interna, mas não libera contato. Reutiliza `lgpd.base_para_contato` e `estados.ETAPAS_DE_CONTATO`. Nenhum endpoint executa contato.
-- Campanhas só aparecem se houver leads autorizados vinculados; ainda não lista campanhas sem importação, nem resultados brutos. Ficha não inclui contatos, observações, textos livres ou payload de IA.
-- `allow_real_copy=True` é parâmetro explícito para futuros testes programáticos restritos em cópia autorizada, desabilita contas demonstrativas; não está habilitado no comando padrão e não é autorização de uso produtivo.
-- Não há gravações operacionais. A prévia validada permanece intacta. Uma rota separada Next.js em /operacao conecta as leituras iniciais através de um BFF local; filtros adicionais (SLA/responsável), equivalência e hardening são próximos passos. Os testes adicionados usam fixture mínima de SQLite e devem ser executados antes de habilitar qualquer gravação.
+No navegador, o BFF Next.js mantém o token em cookie HttpOnly/SameSite Strict e valida a origem das operações. Para testes diretos, envie `Authorization: Bearer <token>`. As respostas comerciais usam `Cache-Control: no-store`.
 
-## Interface de homologação
-Com a API local em execução, em outro terminal rode `cd frontend && npm ci && npm run dev` e abra http://localhost:3000/operacao. A rota usa um BFF Next.js local com cookie HttpOnly/SameSite Strict, token opaco não exposto ao JavaScript, filtro de rotas e verificação de origem no login/logout. Cookie Secure em HTTPS; HTTP permitido apenas para homologação local. Não expor o servidor Next.js ou API na internet. O dashboard demonstrativo original permanece em /.
+### Comandos e transação
 
-## Auditoria do PR #27
+- Gestor pode buscar, importar, processar, revisar, encaminhar e atribuir. Nos comandos de BDR, o gestor opera os leads fictícios elegíveis e o BDR opera somente os da sua carteira. Executivo tem leitura da carteira e não executa comandos.
+- A busca de escrita usa uma amostra determinística do catálogo fictício local e persiste histórico. Ela ignora chaves externas no modo de gravação. Importe apenas os CNPJs da busca salva. A ingestão existente deduplica e o serviço de prospecção associa o lead preexistente a outra campanha sem duplicá-lo. Novos leads entram com base legal pendente.
+- Processamento reutiliza os agentes, score e classificação do Python em modo local. A interface permite decidir revisão humana, encaminhar casos elegíveis e redistribuir leads ativos.
+- Status, atividades, cadência, agenda e BANT usam os serviços existentes. Opt-out exclui o lead das ações. Contatos, conclusão de cadência e retornos comerciais exigem base e etapa elegíveis. BANT aceita um critério por vez. O preenchimento do BANT pode avançar sem contato.
+- Comandos de lead enviam `leads: [{ id, versao }]`. SQLite inicia `BEGIN IMMEDIATE` antes da autenticação e das checagens de papel, carteira, LGPD e versão. Serviços herdam a conexão só no contexto do comando. Falha em qualquer item reverte o lote. A versão desatualizada recebe 409. Banco ocupado recebe 503.
+- A chave UUID é gravada por usuário junto com o resultado e a transação. A repetição do mesmo pedido recupera o resultado, inclusive após reinício, se o usuário ainda estiver autorizado. Reutilizar a chave com outro pedido dá 409. A interface reaproveita a chave para repetir um pedido idêntico após falha de rede. Uma operação confirmada atualiza ficha, totais, revisão, fila, SLA e campanhas.
 
-- Sessão revogada no logout; o BFF informa falha quando o servidor não confirma a revogação. Validações da API não repetem valores de credenciais. A API recusa o caminho configurado para o SQLite operacional e aliases do mesmo arquivo.
-- Gestor e BDR podem ver a fila, ordenada por prazo de SLA e depois por score. O executivo continua com leitura da própria carteira, sem fila BDR nem triagem. Opt-out permanece excluído de todas as leituras comerciais. Base legal pendente permite ficha e progresso interno do BANT, e bloqueia a cadência de contato.
-- Gestor e BDR no escopo recebem somente indicadores preenchido/confirmado do BANT. A ficha inclui dia, canal, prazo e conclusão da cadência quando a etapa e a base legal permitem contato. Valores livres e roteiros ficam fora da API.
-- `POST /v1/company-search` consulta até 10 empresas com UF, código IBGE, CNAE e mês/ano de abertura. Somente gestor autenticado pode consultar. A rota fica desativada sem `FULLGUETE_API_CNPJA_KEY`, uma configuração exclusiva do servidor da API. A consulta ativa pode consumir créditos e está limitada a uma chamada por 15 s por processo. A integração foi testada com resposta simulada, sem chave real ou chamada ao fornecedor.
+## Validação
 
-Nenhuma rota de mutação de lead está disponível. A busca externa não grava campanha nem importa seus resultados. Para a próxima etapa, importação deverá reutilizar `banco.prospeccao.importar` e separar respostas reais do SQLite fictício. Revisão, triagem, atribuição, cadência e BANT deverão reutilizar `nucleo.revisao`, `nucleo.triagem` e `nucleo.comercial` com autorização e operação na mesma transação. Em particular, `comercial.marcar_passo` valida a base legal ao concluir a cadência, mas o adaptador terá de validar também propriedade do lead, etapa e opt-out. As funções que chamam `conectar()` não podem ser chamadas diretamente na API de homologação, pois essa conexão resolve o banco padrão e pode migrá-lo.
+```sh
+pytest
+python -m unittest -v portal_api.test_readonly portal_api.test_commands
+python -m compileall -q portal_api
+ruff check .
+ruff format --check .
+cd frontend
+npm ci
+npm run build
+npm run typecheck
+```
+
+A suíte de gravação prepara a base fictícia em outro processo e usa uma cópia por teste. Cobre escopo, opt-out, base legal, deduplicação, revisão, processamento, concorrência, rollback de lote e repetição após reinício.
+
+### Navegador
+
+Com a API e o Next.js rodando sobre uma base fictícia recém-preparada, instale Playwright e axe-core em um diretório temporário e execute o teste. O roteiro grava dados na cópia e cobre os fluxos do gestor em 1440 px e do BDR em 390 px.
+
+```sh
+npm install --prefix /tmp/fullguete-browser playwright-core @axe-core/playwright
+NODE_PATH=/tmp/fullguete-browser/node_modules \
+CHROMIUM_PATH=/usr/bin/chromium \
+OPERATION_URL=http://127.0.0.1:3000/operacao \
+OPERATION_SCREENSHOTS=/tmp/fullguete-capturas \
+node frontend/integration/test_operation_browser.cjs
+```
+
+Omita `OPERATION_SCREENSHOTS` para executar sem gravar capturas.
+
+Capturas da validação do PR #27. [Desktop em 1440 px](../docs/operacao-desktop.webp) · [Mobile em 390 px](../docs/operacao-mobile.webp).

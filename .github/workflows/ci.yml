@@ -25,7 +25,7 @@ jobs:
       - name: Testes (pytest)
         run: |
           pytest
-          python -m unittest -v portal_api.test_readonly
+          python -m unittest -v portal_api.test_readonly portal_api.test_commands
 
   frontend:
     runs-on: ubuntu-latest

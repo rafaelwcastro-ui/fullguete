@@ -27,20 +27,21 @@ export async function POST(req: NextRequest, ctx: Context) {
   if (!localOnly(req) || !sameOrigin(req)) return response({detail:"Acesso local obrigatório."},403);
   const {path}=await ctx.params;
   const route = path.join("/");
-  if (route !== "session" && route !== "company-search") return response({detail:"Não permitido."},405);
+  if (!["session", "company-search", "commands"].includes(route)) return response({detail:"Não permitido."},405);
   if (!(req.headers.get("content-type")||"").startsWith("application/json")) return response({detail:"JSON obrigatório."},415);
   try {
     const raw=await req.text();
     if(raw.length>4096) return response({detail:"Requisição inválida."},400);
     const input=JSON.parse(raw);
-    if (route === "company-search") {
+    if (route !== "session") {
       const token = req.cookies.get(cookieName)?.value;
       if (!token) return response({detail:"Autenticação necessária."},401);
-      const result = await call("/company-search", {
+      const idempotency = req.headers.get("Idempotency-Key");
+      const result = await call("/" + route, {
         method:"POST",
-        headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},
+        headers:{"Content-Type":"application/json",Authorization:"Bearer "+token,...(idempotency ? {"Idempotency-Key":idempotency} : {})},
         body:JSON.stringify(input),
-      }, 30000);
+      }, route === "commands" ? 120000 : 30000);
       if (result.status === 401) return clearCookie(response({detail:"Sessão expirada."},401));
       return response(await result.json(),result.status);
     }
@@ -55,7 +56,8 @@ export async function POST(req: NextRequest, ctx: Context) {
     out.cookies.set(cookieName,session.access_token,{httpOnly:true,sameSite:"strict",secure:req.nextUrl.protocol==="https:",path:"/",maxAge:1800});
     return out;
   } catch {
-    return clearCookie(response({detail:"API indisponível ou solicitação inválida."},502));
+    const failure = response({detail:"API indisponível ou solicitação inválida."},502);
+    return route === "session" ? clearCookie(failure) : failure;
   }
 }
 
@@ -77,7 +79,7 @@ export async function DELETE(req: NextRequest, ctx: Context) {
 export async function GET(req: NextRequest, ctx: Context) {
   if(!localOnly(req)) return response({detail:"Acesso local obrigatório."},403);
   const path=(await ctx.params).path.join("/");
-  if(!/^(me|campaigns|leads(?:\/[1-9][0-9]*)?)$/.test(path)) return response({detail:"Rota inexistente."},404);
+  if(!/^(me|campaigns|operation-options|(?:leads|search-history)(?:\/[1-9][0-9]*)?)$/.test(path)) return response({detail:"Rota inexistente."},404);
   const token=req.cookies.get(cookieName)?.value;
   if(!token) return response({detail:"Autenticação necessária."},401);
   const params=new URLSearchParams();
