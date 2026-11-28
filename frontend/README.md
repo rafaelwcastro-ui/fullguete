@@ -1,31 +1,46 @@
-# Fullguete — prévia de interface
-Esta aplicação Next.js é isolada do Streamlit. Não lê SQLite, não usa credenciais, não chama APIs de CNPJ ou IA e não modifica registros reais. O conjunto de dados é integralmente fictício e está identificado na tela. Não é uma substituição funcional do portal.
+# Fullguete 3.0 — prévia do PR #26
 
-## Executar
-Node.js 20.9+ (preferir LTS compatível com Next.js 16).
+## Execução local
+
+Node.js 20.9+ com npm. O lockfile foi validado com Node.js 24.
+
 ```sh
 cd frontend
-npm install
+npm ci
 npm run typecheck
 npm run build
-npm run dev
+npm run start
 ```
-Abra http://localhost:3000. A interface inclui filtro de período ilustrativo, busca local de empresas de exemplo, indicadores, gráfico e pipeline responsivo. A navegação operacional completa ainda não foi migrada.
 
-## Stack
-Next.js App Router, React, TypeScript, Tailwind 4, Lucide, Recharts. Configuração para shadcn/ui e um componente Card local seguindo a convenção de componentes copiáveis; não houve execução do CLI. Tremor deve ser adotado seletivamente por componentes copiados e validados, sem adicionar um segundo sistema de design ou misturar versões incompatíveis de Tailwind/Recharts. Esta primeira prévia utiliza Recharts diretamente.
+Abra http://localhost:3000. Use `npm run dev` para desenvolvimento.
 
-## Segurança e migração
-Não publicar este frontend como produção. Não incluir dados de clientes ou chaves em JavaScript. Antes de integrar, definir API Python autenticada (por exemplo FastAPI), testar autorização por perfil e escopo, proteger dados e aplicar o mesmo serviço de transição e regras LGPD existente. Preservar arquivos operacionais e contratos. Somente substituir a interface anterior após testes e homologação. A persistência SQLite no Streamlit Cloud é efêmera, conforme README principal; não migrar dados sem backup e estratégia validada.
+## O que a prévia cobre
 
-## Direção visual aprovada
-Menu compacto com degradê verde–ciano, faixa superior luminosa, cartões quase pretos e navegação demonstrativa por módulos. Prospecção, Central de trabalho, CRM, Analytics e Administração são acessíveis na prévia; não há gravação nem chamadas a APIs. Filtros e ficha local usam apenas os exemplos. Os sparklines representam os valores ilustrativos do período selecionado. A autenticação do Streamlit não é compartilhada com o Next.js.
+- **Visão geral e Analytics** usam o snapshot fictício com 30 dias, janela de 7 dias e tabela diária em Analytics. Datas agrupam leads pela captura. A série mede as etapas atingidas até a data de corte do snapshot.
+- **Prospecção** permite consultar empresas e campanhas fictícias, com recortes distintos de qualificação e revisão.
+- **Central BDR** separa fila, carteira e triagem. Próximas ações abre a ficha correspondente em um clique, inclusive quando a base legal está pendente.
+- **CRM** apresenta exemplos por etapa e uma agenda somente leitura. **Assistente IA** permite consultar a ficha de exemplo em contexto. O chat com o catálogo, mudanças de etapa e reagendamento continuam disponíveis no Streamlit.
 
-## Contrato de leitura (primeiro passo da integração)
-Em `integration/`, o exportador abre uma cópia SQLite em modo somente leitura, filtra exclusivamente leads fictícios e exporta indicadores agregados por coorte de criação, sem nomes ou CNPJs. Não executa migrações. Ainda não é uma API nem está conectado à tela.
+A [paleta](../docs/PALETA_FULLGUETE.md) vem dos PNGs oficiais. O frontend usa Next.js App Router, React, TypeScript, Tailwind CSS 4, o Card local em estilo shadcn/ui e Recharts. A barra de progresso é uma adaptação do Tremor Raw licenciada sob Apache 2.0. O pacote `@tremor/react` declara React 18 como peer dependency. O componente copiável mantém a stack React 19/Tailwind 4 sem ignorar peers.
+
+## Snapshot e integração
 
 ```sh
 cd frontend/integration
-python -m unittest test_export_dashboard
-python export_dashboard.py --demo-copy /caminho/copia-demo.db --end 2026-11-27
+python -m unittest -v test_export_dashboard
+python build_demo_snapshot.py
 ```
+
+O gerador cria sua própria base temporária e usa o exportador para produzir `lib/demo-dashboard.json`. O build da prévia embarca apenas esse JSON. A consulta usa SQLite somente leitura, filtra `base_ficticia=1` e exporta totais por dia. Nenhum banco operacional deve ser usado na prévia.
+
+### Contratos para a próxima etapa
+
+| Jornada | Contrato e regras a preservar |
+|---|---|
+| Prospecção | Filtros de CNAE, município e período e histórico por campanha. Importação selecionada no pipeline Python com deduplicação por CNPJ e associação à campanha; dados cadastrais começam com base legal pendente. Credenciais e importação ficam no servidor. |
+| Central BDR | Listagem paginada por situação, campanha, SLA e responsável. Resolver a identidade na sessão do servidor e aplicar escopo antes de montar fichas. Reusar triagem e gestão de leads, com validação de perfil, atribuição, estado e opt-out. |
+| CRM | Usar serviços de agenda e comercial para transições, BANT, atividades e passagem ao executivo. Verificar titularidade, papel e regras de contato em cada operação. |
+| Analytics | Manter `fullguete.dashboard.v1` para a série agregada de demonstração. Indicadores técnicos e dados operacionais exigem autorização e contrato próprios. |
+| Assistente IA | Resolver o lead autorizado antes de expor contexto ou chamar o serviço existente de chat com o catálogo. Manter o modo consultivo. |
+
+A API autenticada e todos os fluxos de escrita estão pendentes. Os testes de autorização da suíte Python validam o comportamento operacional existente em SQLite isolado. A próxima etapa da API exige testar sessão ausente, BDR responsável e fora da carteira, gestor, executivo e opt-out nas rotas.

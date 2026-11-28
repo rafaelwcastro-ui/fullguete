@@ -6,8 +6,8 @@
  --card: #0e0f14;
  --border: #2b2d35;
  --muted: #a1afc0;
- --primary: #83f7bd;
- --secondary: #00c9f5;
+ --primary: #00ebfd;
+ --secondary: #c4a1ff;
 }
 @theme inline {
  --color-background: var(--background);
@@ -19,18 +19,17 @@
  --color-secondary: var(--secondary);
 }
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 body { margin: 0; background: var(--background); color: var(--foreground); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
 button:not(:disabled), a { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; }
-::selection { background: #62e4cb; color: #090e17; }
-.hero { background: radial-gradient(ellipse at 90% 0%, #16464a 0%, transparent 58%), linear-gradient(110deg,#101d2b,#101925); }
+::selection { background: var(--primary); color: #090e17; }
 .panel-scroll { scroll-margin-top: 24px; }
 
 /* Design direction: luminous header, near-black cards, restrained accent gradient. */
 .dashboard-main { isolation:isolate; }
-.dashboard-main::before { content:""; position:absolute; inset:0 0 auto; height:224px; z-index:-1; background: radial-gradient(ellipse at 15% 0%,#2b7155 0%,transparent 66%),linear-gradient(108deg,#28604b 0%,#168e85 55%,#086477 100%); }
-.nav-active { background:linear-gradient(100deg,#9bffad,#00c9f5); color:#071718; }
-.metric-panel { background: radial-gradient(ellipse at 75% 0%,#183c35 0%,transparent 72%),linear-gradient(165deg,#0b100f,#101116); border-color:#242d2d; box-shadow:0 10px 26px #0003; }
+.dashboard-main::before { content:""; position:absolute; inset:0 0 auto; height:224px; z-index:-1; background: radial-gradient(ellipse at 15% 0%,#49346a 0%,transparent 66%),linear-gradient(108deg,#382357 0%,#293b66 55%,#124754 100%); }
+.nav-active { background:linear-gradient(100deg,#00ebfd,#c4a1ff); color:#071718; }
+.metric-panel { background: radial-gradient(ellipse at 75% 0%,#272139 0%,transparent 72%),linear-gradient(165deg,#101019,#101116); border-color:#302a3c; box-shadow:0 10px 26px #0003; }
 .chart-panel { background:linear-gradient(160deg,#08090c,#111116); }
 @media(max-width: 640px) { .dashboard-main::before { height: 218px; } }

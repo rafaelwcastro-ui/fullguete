@@ -1,4 +1,5 @@
 """Exporta somente agregados de leads fictícios de uma cópia SQLite, sem modificar o banco."""
+
 from __future__ import annotations
 
 import argparse
@@ -33,7 +34,9 @@ def export_snapshot(path: Path, end: date) -> dict:
     for i in range(30):
         day = (start + timedelta(days=i)).isoformat()
         values = counts.get(day, (0, 0, 0, 0))
-        series.append(dict(zip(("day", "capturados", "tratados", "qualificados", "reunioes"), (day, *values))))
+        series.append(
+            dict(zip(("day", "capturados", "tratados", "qualificados", "reunioes"), (day, *values), strict=True))
+        )
     return {"schema": "fullguete.dashboard.v1", "source": "synthetic-only", "series": series}
 
 

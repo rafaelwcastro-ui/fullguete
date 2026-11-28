@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
+
 from export_dashboard import export_snapshot
 
 
@@ -22,9 +23,10 @@ class DashboardSnapshotTest(unittest.TestCase):
             before = path.read_bytes()
             output = export_snapshot(path, date(2026, 11, 27))
             self.assertEqual(len(output["series"]), 30)
-            self.assertEqual(output["series"][-2], {
-                "day":"2026-11-26","capturados":2,"tratados":1,"qualificados":0,"reunioes":0
-            })
+            self.assertEqual(
+                output["series"][-2],
+                {"day": "2026-11-26", "capturados": 2, "tratados": 1, "qualificados": 0, "reunioes": 0},
+            )
             self.assertEqual(path.read_bytes(), before)
 
 
