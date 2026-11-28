@@ -1,7 +1,7 @@
 """Contratos e adaptação dos serviços de domínio para a homologação."""
 
 import sqlite3
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal
 
 from fastapi import HTTPException
@@ -114,8 +114,150 @@ class Return(SingleLead):
     inicio: datetime
 
 
+class Opportunity(SingleLead):
+    acao: Literal["oportunidade"]
+    solucoes: list[Short] = Field(min_length=1, max_length=10)
+    valor: float | None = Field(default=None, ge=0, le=100_000_000)
+    previsao: date | None = None
+
+
+class Handoff(SingleLead):
+    acao: Literal["passagem"]
+    executivo: Positive
+    inicio: datetime
+    solucoes: list[Short] = Field(min_length=1, max_length=10)
+
+
+class Move(SingleLead):
+    acao: Literal["crm-status"]
+    etapa: Short
+    motivo: Short | None = None
+    justificativa: Short
+
+
+class Schedule(SingleLead):
+    acao: Literal["agenda-criar"]
+    tipo: Literal["Tarefa interna", "Retorno", "Reunião planejada", "Reunião confirmada"]
+    titulo: Annotated[str, StringConstraints(strip_whitespace=True, min_length=4, max_length=180)]
+    inicio: datetime
+
+
+class ResolveSchedule(SingleLead):
+    acao: Literal["agenda-resolver", "agenda-reagendar"]
+    compromisso: Positive
+    status: Literal["Concluído", "Cancelado"] | None = None
+    inicio: datetime | None = None
+
+    @model_validator(mode="after")
+    def require_fields(self):
+        if self.acao == "agenda-reagendar" and (self.inicio is None or self.status is not None):
+            raise ValueError("Informe o novo horário.")
+        if self.acao == "agenda-resolver" and (self.status is None or self.inicio is not None):
+            raise ValueError("Informe o status de conclusão.")
+        return self
+
+
+CRM_ACTIONS = {"oportunidade", "crm-status", "agenda-criar", "agenda-resolver", "agenda-reagendar"}
+
+
+def crm_moves(actor: dict, etapa: str) -> list[str]:
+    if etapa not in estados.ETAPAS_FUNIL:
+        return []
+    if actor["papel"] == "bdr":
+        return [estados.QUALIFICADO] if etapa == estados.EM_CONTATO else []
+    allowed = (estados.QUALIFICADO, estados.PROPOSTA, estados.GANHO, estados.PERDIDO, estados.NUTRICAO)
+    return [stage for stage in allowed if stage in estados.TRANSICOES.get(etapa, set())]
+
+
+def horario(data: datetime) -> str:
+    return tempo.iso(data if data.tzinfo else data.replace(tzinfo=tempo.FUSO))
+
+
+def apply_crm(con: sqlite3.Connection, actor: dict, lead: sqlite3.Row, body) -> dict:
+    ident = lead["id"]
+    if isinstance(body, Opportunity):
+        if lead["etapa"] not in estados.ETAPAS_FUNIL:
+            raise ValueError("Oportunidades estão disponíveis no funil comercial.")
+        comercial.salvar_oportunidade(
+            ident,
+            actor,
+            list(dict.fromkeys(body.solucoes)),
+            body.valor,
+            lead["executivo_id"],
+            body.previsao.isoformat() if body.previsao else None,
+        )
+        return {"total": 1}
+    if isinstance(body, Handoff):
+        if (
+            not con.execute(
+                "SELECT 1 FROM usuarios WHERE id=? AND papel='executivo' AND ativo=1 AND demonstracao=1",
+                (body.executivo,),
+            ).fetchone()
+            or not set(body.solucoes) <= catalogo.ids()
+        ):
+            raise ValueError("Selecione um executivo ativo e soluções do catálogo.")
+        inicio = horario(body.inicio)
+        if con.execute(
+            """SELECT 1 FROM agenda_compromissos WHERE responsavel_id=? AND inicio_em=? AND status='Pendente'
+            AND tipo IN ('Reunião planejada','Reunião confirmada')""",
+            (body.executivo, inicio),
+        ).fetchone():
+            raise ValueError("O executivo já tem uma reunião nesse horário.")
+        comercial.qualificar_e_agendar(
+            ident, actor, inicio, body.executivo, list(dict.fromkeys(body.solucoes)), usar_llm=False
+        )
+        return {"etapa": estados.REUNIAO}
+    if isinstance(body, Move):
+        if body.etapa not in crm_moves(actor, lead["etapa"]):
+            raise ValueError("Transição indisponível nesta etapa ou perfil.")
+        if body.etapa == estados.QUALIFICADO and lead["etapa"] == estados.EM_CONTATO:
+            return {"etapa": gestao_leads.mudar_status(ident, actor, body.etapa, body.justificativa)}
+        if body.etapa in estados.ETAPAS_DE_CONTATO and not lgpd.base_para_contato(con, ident):
+            raise ValueError("Avanço bloqueado enquanto a base legal estiver pendente.")
+        return {"etapa": comercial.mover_no_funil(ident, actor, body.etapa, body.motivo, body.justificativa)}
+    if isinstance(body, Schedule):
+        if body.tipo != "Tarefa interna":
+            require_contact(con, lead)
+        return {
+            "compromisso": agenda.agendar(
+                ident,
+                actor,
+                body.tipo,
+                body.titulo,
+                horario(body.inicio),
+                responsavel_id=None if actor["papel"] == "gestor" else actor["id"],
+            )
+        }
+    item = con.execute(
+        "SELECT * FROM agenda_compromissos WHERE id=? AND lead_id=?", (body.compromisso, ident)
+    ).fetchone()
+    if not item or (actor["papel"] != "gestor" and item["responsavel_id"] != actor["id"]):
+        raise HTTPException(404, "Compromisso não encontrado.")
+    if item["tipo"] != "Tarefa interna" and body.status != "Cancelado":
+        require_contact(con, lead)
+    if body.inicio is not None:
+        agenda.reagendar(body.compromisso, actor, horario(body.inicio))
+    else:
+        agenda.concluir(body.compromisso, actor, body.status)
+    return {"compromisso": body.compromisso}
+
+
 Command = Annotated[
-    Search | Import | Process | Assign | Status | Review | Activity | Cadence | Bant | Return,
+    Search
+    | Import
+    | Process
+    | Assign
+    | Status
+    | Review
+    | Activity
+    | Cadence
+    | Bant
+    | Return
+    | Opportunity
+    | Handoff
+    | Move
+    | Schedule
+    | ResolveSchedule,
     Field(discriminator="acao"),
 ]
 
@@ -175,7 +317,9 @@ def find_targets(
         )
     }
     if any(
-        target.id not in rows or (actor["papel"] == "bdr" and rows[target.id]["responsavel_id"] != actor["id"])
+        target.id not in rows
+        or (actor["papel"] == "bdr" and rows[target.id]["responsavel_id"] != actor["id"])
+        or (actor["papel"] == "executivo" and rows[target.id]["executivo_id"] != actor["id"])
         for target in body.leads
     ):
         raise HTTPException(404, "Um ou mais leads estão fora da carteira disponível.")
@@ -262,6 +406,8 @@ def apply(con: sqlite3.Connection, actor: dict, body: Command) -> dict:
 
     lead = rows[0]
     ident = lead["id"]
+    if body.acao in CRM_ACTIONS or isinstance(body, Handoff):
+        return apply_crm(con, actor, lead, body)
     if isinstance(body, Review):
         if body.decisao == "ajustar":
             if body.classificacao not in revisao.CLASSES_REVISAO:

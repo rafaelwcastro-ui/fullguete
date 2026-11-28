@@ -279,3 +279,227 @@ class CommandsTest(TestCase):
         self.assertEqual(
             entries, [{"para": estados.DESCARTADO, "motivo": "Sem fit", "detalhe": fields["justificativa"]}]
         )
+
+    def test_capture_to_won_through_executive_and_agenda(self):
+        from banco.conexao import reutilizar_transacao
+        from nucleo import lgpd
+
+        search = self.search()
+        cnpjs = [item["cnpj"] for item in search["items"]]
+        self.successful("importar", campanha=search["id"], cnpjs=cnpjs)
+        leads = self.query(
+            "SELECT id,versao FROM leads WHERE id IN (SELECT lead_id FROM buscas_leads WHERE busca_id=?)",
+            (search["id"],),
+        )
+        self.successful("processar", leads=leads)
+        eligible = self.query(
+            """SELECT l.id,l.etapa FROM leads l JOIN buscas_leads b ON b.lead_id=l.id WHERE b.busca_id=?
+            AND l.etapa IN (?,?,?) ORDER BY l.id""",
+            (search["id"], estados.REVISAO, estados.NUTRICAO, estados.FILA_BDR),
+        )
+        self.assertTrue(eligible, self.query("SELECT etapa, COUNT(*) AS n FROM leads WHERE id > 100 GROUP BY etapa"))
+        ident = eligible[0]["id"]
+        if eligible[0]["etapa"] == estados.REVISAO:
+            self.successful(
+                "revisar",
+                leads=[self.target(ident)],
+                decisao="ajustar",
+                classificacao="Quente",
+                motivo="Revisão do prospect fictício",
+            )
+        self.successful("triagem", leads=[self.target(ident)], bdr=2, motivo="Encaminhamento de homologação")
+        bdr = self.login("bdr.ana")
+        executive = self.login("executivo")
+        self.assertEqual(
+            self.command(
+                "atividade", auth=bdr, leads=[self.target(ident)], tipo="Ligação", resultado="Interessado"
+            ).status_code,
+            422,
+        )
+        self.assertEqual(self.client.get(f"/v1/crm/{ident}", headers=executive).status_code, 404)
+        blocked = self.client.post(
+            "/v1/assistente", headers=bdr, json={"lead_id": ident, "pergunta": "Escreva um WhatsApp"}
+        ).json()
+        self.assertIn("bloqueado", blocked["texto"])
+        # A homologação da base legal usa o serviço existente em SQLite isolado.
+        with closing(sqlite3.connect(self.path)) as con, con:
+            con.row_factory = sqlite3.Row
+            con.execute("BEGIN IMMEDIATE")
+            with reutilizar_transacao(con):
+                lgpd.regularizar(ident, "gestor", "legitimo_interesse", "Justificativa fictícia documentada")
+        self.successful("atividade", auth=bdr, leads=[self.target(ident)], tipo="Ligação", resultado="Interessado")
+        self.successful("bant", auth=bdr, leads=[self.target(ident)], valores={"necessidade": "Avaliar fraude"})
+        contextual = self.client.post(
+            "/v1/assistente",
+            headers=bdr,
+            json={
+                "lead_id": ident,
+                "pergunta": "Prepare-me para a reunião",
+            },
+        )
+        self.assertEqual(contextual.status_code, 200, contextual.text)
+        self.assertIn("necessidade: preenchido", contextual.json()["texto"])
+        self.assertNotIn("necessidade: Avaliar fraude", contextual.json()["texto"])
+        solution = "prospeccao_qualificada"
+        self.successful("oportunidade", auth=bdr, leads=[self.target(ident)], solucoes=[solution], valor=1500.50)
+        with patch("ia.provedor.chamar") as external:
+            self.assertEqual(
+                self.successful(
+                    "passagem",
+                    auth=bdr,
+                    leads=[self.target(ident)],
+                    executivo=5,
+                    inicio=tempo.daqui(dias=3),
+                    solucoes=[solution],
+                )["etapa"],
+                estados.REUNIAO,
+            )
+            external.assert_not_called()
+        appointment = next(
+            item
+            for item in self.client.get(f"/v1/agenda?lead_id={ident}", headers=executive).json()["items"]
+            if item["tipo"] == "Reunião confirmada"
+        )
+        key = appointment["id"]
+        self.assertEqual(
+            self.command(
+                "agenda-resolver", auth=bdr, leads=[self.target(ident)], compromisso=key, status="Concluído"
+            ).status_code,
+            404,
+        )
+        new_date = tempo.daqui(dias=4)
+        self.successful(
+            "agenda-reagendar", auth=executive, leads=[self.target(ident)], compromisso=key, inicio=new_date
+        )
+        self.assertEqual(
+            self.query("SELECT inicio_em FROM agenda_compromissos WHERE id=?", (key,))[0]["inicio_em"], new_date
+        )
+        self.successful(
+            "agenda-resolver", auth=executive, leads=[self.target(ident)], compromisso=key, status="Concluído"
+        )
+        self.assertEqual(
+            self.command(
+                "crm-status",
+                auth=bdr,
+                leads=[self.target(ident)],
+                etapa=estados.PROPOSTA,
+                justificativa="Proposta registrada pelo executivo",
+            ).status_code,
+            422,
+        )
+        self.successful(
+            "crm-status",
+            auth=executive,
+            leads=[self.target(ident)],
+            etapa=estados.PROPOSTA,
+            justificativa="Proposta enviada",
+        )
+        self.successful(
+            "crm-status",
+            auth=executive,
+            leads=[self.target(ident)],
+            etapa=estados.GANHO,
+            justificativa="Aceite registrado",
+        )
+        with TestClient(create_app(self.path, write_enabled=True)) as reopened:
+            headers = self.login("executivo", reopened)
+            detail = reopened.get(f"/v1/crm/{ident}", headers=headers)
+            self.assertEqual(detail.status_code, 200, detail.text)
+            self.assertEqual(detail.json()["oportunidade"]["valor_mensal"], 1500.50)
+            self.assertTrue(any(item["fase"] == "Captura" for item in detail.json()["historico"]))
+            self.assertTrue(any(item["fase"] == "Aprendizado" for item in detail.json()["historico"]))
+            analytics = reopened.get(f"/v1/analytics?dias=0&campaign_id={search['id']}", headers=headers)
+            self.assertEqual(analytics.status_code, 200, analytics.text)
+            self.assertEqual(analytics.json()["receita"]["ganha"], 1500.50)
+            self.assertEqual(analytics.json()["funil"][-1]["leads"], 1)
+        self.assertTrue(self.query("SELECT resultado FROM rotulos_treino WHERE lead_id=? AND resultado=1", (ident,)))
+
+    def test_crm_analytics_assistant_and_agenda_stay_inside_scope(self):
+        bdr = self.login("bdr.ana")
+        context = self.lead(owner=3)
+        ident = context["id"]
+        for endpoint in ("crm", "analytics", "agenda"):
+            self.assertEqual(self.client.get("/v1/" + endpoint).status_code, 401)
+            response = self.client.get("/v1/" + endpoint, headers=bdr)
+            self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self.client.get(f"/v1/crm/{ident}", headers=bdr).status_code, 404)
+        executive = self.login("executivo")
+        unassigned = self.query(
+            "SELECT id,versao FROM leads WHERE executivo_id IS NULL AND opt_out=0 AND etapa=? LIMIT 1",
+            (estados.EM_CONTATO,),
+        )[0]
+        self.assertEqual(
+            self.command(
+                "oportunidade", auth=executive, leads=[unassigned], solucoes=["prospeccao_qualificada"]
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.post(
+                "/v1/assistente", headers=bdr, json={"lead_id": ident, "pergunta": "Histórico"}
+            ).status_code,
+            404,
+        )
+        with patch("ia.provedor.chamar") as external:
+            answer = self.client.post("/v1/assistente", headers=bdr, json={"pergunta": "Quais são os gargalos?"})
+            self.assertEqual(answer.status_code, 200, answer.text)
+            self.assertIn("carteira", answer.json())
+            external.assert_not_called()
+        before = self.query("SELECT COUNT(*) AS n FROM leads WHERE responsavel_id=2 AND opt_out=0")[0]["n"]
+        stats = self.client.get("/v1/analytics?dias=0", headers=bdr).json()
+        self.assertEqual(stats["funil"][0]["leads"], before)
+        empty = self.client.get("/v1/analytics?campaign_id=99999", headers=bdr).json()
+        self.assertEqual(empty["receita"]["prevista"], 0.0)
+        self.assertEqual(empty["funil"][0]["leads"], 0)
+
+    def test_agenda_reschedule_conflict_and_crm_loss_reason(self):
+        lead = self.query(
+            "SELECT id,versao FROM leads WHERE etapa=? AND opt_out=0 AND executivo_id IS NOT NULL LIMIT 1",
+            (estados.REUNIAO,),
+        )[0]
+        ident = lead["id"]
+        executive = self.login("executivo")
+        first = self.successful(
+            "agenda-criar",
+            auth=executive,
+            leads=[lead],
+            tipo="Reunião planejada",
+            titulo="Revisar oportunidade",
+            inicio=tempo.daqui(dias=5),
+        )["compromisso"]
+        other_time = tempo.daqui(dias=6)
+        self.successful(
+            "agenda-criar",
+            auth=executive,
+            leads=[self.target(ident)],
+            tipo="Reunião planejada",
+            titulo="Validar proposta mensal",
+            inicio=other_time,
+        )
+        snapshot = self.target(ident)
+        self.assertEqual(
+            self.command(
+                "agenda-reagendar", auth=executive, leads=[snapshot], compromisso=first, inicio=other_time
+            ).status_code,
+            422,
+        )
+        self.assertEqual(self.target(ident), snapshot)
+        self.assertEqual(
+            self.command(
+                "crm-status",
+                auth=executive,
+                leads=[snapshot],
+                etapa=estados.PERDIDO,
+                justificativa="Encerrando a proposta",
+            ).status_code,
+            422,
+        )
+        self.successful(
+            "crm-status",
+            auth=executive,
+            leads=[snapshot],
+            etapa=estados.PERDIDO,
+            justificativa="Encerrando a proposta",
+            motivo="Sem orçamento",
+        )
+        self.assertEqual(self.query("SELECT etapa FROM leads WHERE id=?", (ident,))[0]["etapa"], estados.PERDIDO)

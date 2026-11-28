@@ -239,7 +239,7 @@ def corrigir_ia(lead_id: int, usuario: dict, campo: str, valor_correto: str, mot
 
 
 def qualificar_e_agendar(lead_id: int, usuario: dict, data_reuniao: str, executivo_id: int,
-                         solucoes: list[str], observacao: str = "") -> None:  # fmt: skip
+                         solucoes: list[str], observacao: str = "", *, usar_llm: bool = True) -> None:  # fmt: skip
     """Qualifica o lead, marca a reunião e passa para o executivo de contas com o resumo automático."""
     from banco.conexao import conectar
     from ia import resumo
@@ -281,7 +281,7 @@ def qualificar_e_agendar(lead_id: int, usuario: dict, data_reuniao: str, executi
         agenda.registrar_reuniao_passagem(con, lead_id, usuario, executivo_id, data_reuniao, observacao)
         repositorio.auditar(con, usuario["login"], "passagem_executivo", "leads", lead_id,
                             {"executivo_id": executivo_id, "reuniao": data_reuniao})  # fmt: skip
-    texto, motor = resumo.passagem(lead_id)
+    texto, motor = resumo.passagem(lead_id, usar_llm=usar_llm)
     with conectar() as con:
         con.execute("UPDATE oportunidades SET resumo_passagem=? WHERE lead_id=?", (texto, lead_id))
         repositorio.auditar(con, "agente_redator", "resumo_passagem", "leads", lead_id, {"motor": motor})
@@ -378,7 +378,7 @@ def regerar_resumo(lead_id: int) -> str:
     return texto
 
 
-def linha_do_tempo(lead_id: int) -> list[dict]:
+def linha_do_tempo(lead_id: int, *, incluir_notas: bool = True) -> list[dict]:
     """Fluxo de ponta a ponta: captura, tratamento, atividades, etapas, oportunidade e aprendizado."""
     import json
 
@@ -411,7 +411,7 @@ def linha_do_tempo(lead_id: int) -> list[dict]:
             texto = f"{h['de']} → {h['para']} por {h['ator']}"
             if h["motivo"]:
                 texto += f". Motivo: {h['motivo']}"
-            if h["detalhe"]:
+            if incluir_notas and h["detalhe"]:
                 texto += f". {h['detalhe']}"
             eventos.append({"quando": h["registrado_em"], "fase": "Etapa", "texto": texto + "."})
         for a in con.execute(
@@ -419,14 +419,14 @@ def linha_do_tempo(lead_id: int) -> list[dict]:
             "ORDER BY a.id", (lead_id,),
         ):  # fmt: skip
             texto = f"{a['tipo']} por {a['usuario'] or 'sistema'}: {a['resultado'] or ''}"
-            if a["anotacao"]:
+            if incluir_notas and a["anotacao"]:
                 texto += f". {a['anotacao']}"
             eventos.append({"quando": a["registrada_em"], "fase": "Atividade do BDR", "texto": texto})
         for c in con.execute("SELECT * FROM correcoes_ia WHERE lead_id=? ORDER BY id", (lead_id,)):
             verbo = "concordou com" if c["concorda"] else "corrigiu"
             eventos.append({"quando": c["registrada_em"], "fase": "Human in the loop",
                             "texto": f"Pessoa {verbo} a IA ({c['campo']}): {c['valor_ia']} → {c['valor_correto']}. "
-                                     f"{c['motivo']}"})  # fmt: skip
+                                     + (c["motivo"] if incluir_notas else "")})  # fmt: skip
         for r in con.execute("SELECT * FROM rotulos_treino WHERE lead_id=? ORDER BY id", (lead_id,)):
             eventos.append({"quando": r["registrado_em"], "fase": "Aprendizado",
                             "texto": f"Resultado ({'ganho' if r['resultado'] else 'perdido'}) enviado para o "

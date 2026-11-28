@@ -71,9 +71,9 @@ def local(ctx: dict) -> str:
     )
 
 
-def passagem(lead_id: int) -> tuple[str, str]:
+def passagem(lead_id: int, *, usar_llm: bool = True) -> tuple[str, str]:
     ctx = _contexto(lead_id)
-    if provedor.disponivel():
+    if usar_llm and provedor.disponivel():
         try:
             r = provedor.chamar(SISTEMA, json.dumps(ctx, ensure_ascii=False), temperatura=0.3, max_tokens=800,
                                 agente="redator_passagem", versao_prompt="passagem_v1", lead_id=lead_id)  # fmt: skip

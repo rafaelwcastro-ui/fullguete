@@ -26,7 +26,17 @@ from banco.conexao import reutilizar_transacao
 from dados import cnpja
 from ia import orquestrador
 from nucleo import auth, comercial, config, estados, gestao_leads, lgpd, revisao, tempo, triagem
-from portal_api.commands import MANAGEMENT, Command, CompanySearch, LeadCommand, apply, campaign_data, find_targets
+from portal_api import operational
+from portal_api.commands import (
+    CRM_ACTIONS,
+    MANAGEMENT,
+    Command,
+    CompanySearch,
+    LeadCommand,
+    apply,
+    campaign_data,
+    find_targets,
+)
 from portal_api.sandbox import MARKER
 
 SESSION_SECONDS = 1800
@@ -40,6 +50,11 @@ DUMMY_HASH = auth.gerar_hash(secrets.token_urlsafe(32))
 class Login(BaseModel):
     login: str = Field(min_length=1, max_length=128)
     senha: str = Field(min_length=1, max_length=512)
+
+
+class AssistantQuestion(BaseModel):
+    pergunta: str = Field(min_length=1, max_length=500)
+    lead_id: int | None = Field(default=None, gt=0)
 
 
 def digest(value: str) -> str:
@@ -218,7 +233,7 @@ def create_app(
         with connection() as con:
             actor = identity(con, key)
             if writable:
-                actor["gravacao"] = actor["papel"] in {"gestor", "bdr"}
+                actor["gravacao"] = True
             return actor
 
     @app.post("/v1/commands")
@@ -238,7 +253,9 @@ def create_app(
                 con.execute("PRAGMA foreign_keys=ON")
                 con.execute("BEGIN IMMEDIATE")
                 actor = identity(con, key)
-                if actor["papel"] not in {"gestor", "bdr"} or (body.acao in MANAGEMENT and actor["papel"] != "gestor"):
+                if (actor["papel"] == "executivo" and body.acao not in CRM_ACTIONS) or (
+                    body.acao in MANAGEMENT and actor["papel"] != "gestor"
+                ):
                     raise HTTPException(403, "Ação fora das permissões do perfil.")
                 if not con.execute("SELECT 1 FROM usuarios WHERE id=? AND demonstracao=1", (actor["id"],)).fetchone():
                     raise HTTPException(403, "Gravações são exclusivas de perfis de demonstração.")
@@ -277,15 +294,21 @@ def create_app(
     def operation_options(key: Annotated[str, Depends(auth_key)]):
         with connection() as con:
             actor = identity(con, key)
-            if not writable or actor["papel"] not in {"gestor", "bdr"}:
+            if not writable:
                 raise HTTPException(403, "Gravação indisponível para o perfil.")
             return {
                 "estado": gestao_leads.OPCOES,
                 "motivos": estados.MOTIVOS,
                 "resultados": comercial.RESULTADOS,
                 "classificacoes": revisao.CLASSES_REVISAO,
-                "solucoes": [{"id": item["id"], "nome": item["nome"]} for item in catalogo.solucoes()]
-                if actor["papel"] == "gestor"
+                "solucoes": [{"id": item["id"], "nome": item["nome"]} for item in catalogo.solucoes()],
+                "executivos": [
+                    dict(row)
+                    for row in con.execute(
+                        "SELECT id,nome FROM usuarios WHERE ativo=1 AND papel='executivo' AND demonstracao=1 ORDER BY nome"
+                    )
+                ]
+                if actor["papel"] != "executivo"
                 else [],
                 "bdrs": [
                     dict(row)
@@ -361,6 +384,7 @@ def create_app(
         key: Annotated[str, Depends(auth_key)],
         view: Literal["all", "queue", "triage", "review", "captured"] = "all",
         campaign_id: Annotated[int | None, Query(gt=0)] = None,
+        termo: Annotated[str, Query(max_length=100)] = "",
         limit: Annotated[int, Query(ge=1, le=100)] = 30,
         offset: Annotated[int, Query(ge=0, le=100000)] = 0,
     ):
@@ -387,6 +411,9 @@ def create_app(
             if campaign_id is not None:
                 where += " AND EXISTS(SELECT 1 FROM buscas_leads bl WHERE bl.lead_id=l.id AND bl.busca_id=?)"
                 params.append(campaign_id)
+            if termo.strip():
+                where += " AND " + operational.TERM_FILTER
+                params.append(operational.search_pattern(termo.strip()))
             order = "l.nota_final DESC NULLS LAST,l.id"
             if view == "queue":
                 order = "l.sla_limite IS NULL,l.sla_limite," + order
@@ -483,6 +510,53 @@ def create_app(
                 ]
             # Não retornar roteiro de contato, dados pessoais, texto livre ou dados brutos da IA.
             return result
+
+    @app.get("/v1/crm")
+    def crm(
+        key: Annotated[str, Depends(auth_key)],
+        termo: Annotated[str, Query(max_length=100)] = "",
+        etapa: Annotated[str, Query(max_length=40)] = "",
+        pagina: Annotated[int, Query(ge=1, le=1000)] = 1,
+    ):
+        with connection() as con:
+            where, params = visible(identity(con, key))
+            return operational.kanban(con, where, params, termo.strip(), pagina, etapa)
+
+    @app.get("/v1/crm/{lead_id}")
+    def crm_lead(lead_id: int, key: Annotated[str, Depends(auth_key)]):
+        with connection() as con:
+            actor = identity(con, key)
+            return operational.crm_detail(con, lead_id, actor, *visible(actor))
+
+    @app.get("/v1/agenda")
+    def agenda_list(
+        key: Annotated[str, Depends(auth_key)],
+        status: Literal["Pendente", "Concluído", "Cancelado", "Todos"] = "Pendente",
+        lead_id: Annotated[int | None, Query(gt=0)] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 30,
+        offset: Annotated[int, Query(ge=0)] = 0,
+    ):
+        with connection() as con:
+            actor = identity(con, key)
+            where, params = visible(actor)
+            return operational.schedule(con, actor, where, params, status, lead_id, limit, offset)
+
+    @app.get("/v1/analytics")
+    def analytics(
+        key: Annotated[str, Depends(auth_key)],
+        dias: Literal["0", "30", "90"] = "30",
+        campaign_id: Annotated[int | None, Query(gt=0)] = None,
+    ):
+        with connection() as con:
+            where, params = visible(identity(con, key))
+            return operational.analytics(con, where, params, int(dias), campaign_id)
+
+    @app.post("/v1/assistente")
+    def assistant(body: AssistantQuestion, key: Annotated[str, Depends(auth_key)]):
+        with connection() as con:
+            actor = identity(con, key)
+            where, params = visible(actor)
+            return operational.consult(con, actor, where, params, body.pergunta, body.lead_id)
 
     @app.get("/v1/campaigns")
     def campaigns(

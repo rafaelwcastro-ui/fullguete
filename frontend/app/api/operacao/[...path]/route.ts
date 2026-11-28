@@ -27,7 +27,7 @@ export async function POST(req: NextRequest, ctx: Context) {
   if (!localOnly(req) || !sameOrigin(req)) return response({detail:"Acesso local obrigatório."},403);
   const {path}=await ctx.params;
   const route = path.join("/");
-  if (!["session", "company-search", "commands"].includes(route)) return response({detail:"Não permitido."},405);
+  if (!["session", "company-search", "commands", "assistente"].includes(route)) return response({detail:"Não permitido."},405);
   if (!(req.headers.get("content-type")||"").startsWith("application/json")) return response({detail:"JSON obrigatório."},415);
   try {
     const raw=await req.text();
@@ -79,11 +79,11 @@ export async function DELETE(req: NextRequest, ctx: Context) {
 export async function GET(req: NextRequest, ctx: Context) {
   if(!localOnly(req)) return response({detail:"Acesso local obrigatório."},403);
   const path=(await ctx.params).path.join("/");
-  if(!/^(me|campaigns|operation-options|(?:leads|search-history)(?:\/[1-9][0-9]*)?)$/.test(path)) return response({detail:"Rota inexistente."},404);
+  if(!/^(me|campaigns|operation-options|agenda|analytics|(?:leads|search-history|crm)(?:\/[1-9][0-9]*)?)$/.test(path)) return response({detail:"Rota inexistente."},404);
   const token=req.cookies.get(cookieName)?.value;
   if(!token) return response({detail:"Autenticação necessária."},401);
   const params=new URLSearchParams();
-  for(const key of ["view","campaign_id","limit","offset"]) {
+  for(const key of ["view","campaign_id","limit","offset","termo","etapa","pagina","lead_id","status","dias"]) {
     const value=req.nextUrl.searchParams.get(key);
     if(value!==null) params.set(key,value);
   }

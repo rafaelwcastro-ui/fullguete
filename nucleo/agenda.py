@@ -45,6 +45,15 @@ def _sincronizar_proxima_acao(con, lead_id: int) -> None:
     )
 
 
+def _validar_horario(inicio_em: str):
+    quando = tempo.ler(inicio_em)
+    if quando is None or quando <= tempo.agora():
+        raise ValueError("O compromisso deve ter data e hora futuras.")
+    if quando > tempo.agora() + timedelta(days=366):
+        raise ValueError("Agende compromissos até 12 meses à frente.")
+    return quando
+
+
 def agendar(
     lead_id: int,
     usuario: dict,
@@ -60,11 +69,7 @@ def agendar(
     titulo = titulo.strip()
     if len(titulo) < 4:
         raise ValueError("Descreva a ação com pelo menos 4 caracteres.")
-    quando = tempo.ler(inicio_em)
-    if quando is None or quando <= tempo.agora():
-        raise ValueError("O compromisso deve ter data e hora futuras.")
-    if quando > tempo.agora() + timedelta(days=366):
-        raise ValueError("Agende compromissos até 12 meses à frente.")
+    quando = _validar_horario(inicio_em)
     if len(descricao) > 2000:
         raise ValueError("Observação muito longa.")
     momento = tempo.iso()
@@ -179,6 +184,39 @@ def concluir(compromisso_id: int, usuario: dict, novo_status: str) -> None:
             "leads",
             compromisso["lead_id"],
             {"compromisso_id": compromisso_id, "status": novo_status},
+        )
+
+
+def reagendar(compromisso_id: int, usuario: dict, inicio_em: str) -> None:
+    """Mantém o vínculo original e registra a mudança no histórico."""
+    inicio = tempo.iso(_validar_horario(inicio_em))
+    with conectar() as con:
+        item = con.execute("SELECT * FROM agenda_compromissos WHERE id=?", (compromisso_id,)).fetchone()
+        if item is None or item["status"] != "Pendente":
+            raise ValueError("Somente compromissos pendentes podem ser reagendados.")
+        if usuario["papel"] != "gestor" and item["responsavel_id"] != usuario["id"]:
+            raise PermissionError("Somente o responsável ou gestor pode reagendar.")
+        if (
+            item["tipo"] in ("Reunião planejada", "Reunião confirmada")
+            and con.execute(
+                """SELECT 1 FROM agenda_compromissos WHERE responsavel_id=? AND inicio_em=? AND status='Pendente'
+            AND tipo IN ('Reunião planejada','Reunião confirmada') AND id<>?""",
+                (item["responsavel_id"], inicio, compromisso_id),
+            ).fetchone()
+        ):
+            raise ValueError("Já existe uma reunião para este responsável nesse horário.")
+        con.execute(
+            "UPDATE agenda_compromissos SET inicio_em=?, atualizado_em=? WHERE id=?",
+            (inicio, tempo.iso(), compromisso_id),
+        )
+        _sincronizar_proxima_acao(con, item["lead_id"])
+        repositorio.auditar(
+            con,
+            usuario["login"],
+            "agenda_reagendada",
+            "leads",
+            item["lead_id"],
+            {"compromisso_id": compromisso_id, "antes": item["inicio_em"], "inicio_em": inicio},
         )
 
 

@@ -6,10 +6,14 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { Card } from "@/components/ui/card";
 import { BatchActions, LeadActions } from "./actions";
 import { CompanySearch } from "./company-search";
+import { AgendaWorkspace, Crm } from "./commercial";
+import { Analytics, Assistant } from "./insights";
 import { api, ApiError, bantLabels, control, formatDate, primary, type Campaign, type Command, type Lead, type Options, type User } from "./contracts";
 
 type View = "all" | "queue" | "triage" | "review" | "captured";
-type Module = "prospecting" | "work";
+const modules = { prospecting: "Prospecção", work: "Central BDR", crm: "CRM", agenda: "Agenda",
+  analytics: "Analytics", assistant: "Assistente IA" } as const;
+type Module = keyof typeof modules;
 type List = { items: Lead[]; total: number; indicadores?: { revisao: number; fila: number; sla_vencido: number } };
 const pageSize = 30;
 
@@ -20,6 +24,7 @@ export default function Operacao() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [module, setModule] = useState<Module>("prospecting");
+  const [consultLead, setConsultLead] = useState<number | null>(null);
   const [view, setView] = useState<View>("all");
   const [campaign, setCampaign] = useState("");
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -39,7 +44,7 @@ export default function Operacao() {
   const reset = useCallback(() => {
     retry.current = null;
     setUser(null); setList(null); setDetail(null); setActive(null); setCampaigns([]);
-    setSelected([]); setCampaign(""); setOffset(0); setOptions(null); setMessage("");
+    setSelected([]); setCampaign(""); setOffset(0); setOptions(null); setMessage(""); setConsultLead(null);
   }, []);
   const handleError = useCallback((failure: unknown) => {
     if (failure instanceof ApiError && failure.status === 401) reset();
@@ -73,7 +78,7 @@ export default function Operacao() {
   }, [user, handleError]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || (module !== "prospecting" && module !== "work")) return;
     const controller = new AbortController();
     setLoading(true);
     const params = new URLSearchParams({ view, limit: String(pageSize), offset: String(offset) });
@@ -84,7 +89,7 @@ export default function Operacao() {
     }).catch((failure) => { if (!controller.signal.aborted) { setList(null); handleError(failure); } })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [user, view, campaign, offset, revision, handleError]);
+  }, [user, view, campaign, offset, revision, handleError, module]);
 
   useEffect(() => {
     if (!user || active === null) return;
@@ -166,6 +171,9 @@ export default function Operacao() {
     : [...(user?.papel !== "executivo" ? [["queue", "Minha fila"] as [View, string]] : []),
       ["all", "Todos os leads"], ...(manager ? [["triage", "Triagem"] as [View, string]] : [])];
   const submit = (command: Command) => { void run(command).catch(handleError); };
+  const shared = user && { user, options, revision, pending, submit, onError: handleError };
+  const consult = (id: number) => { setConsultLead(id); setModule("assistant"); };
+  const bdrActions = user?.gravacao && user.papel !== "executivo";
 
   return <main className="mx-auto min-h-screen max-w-7xl space-y-4 p-4 sm:p-8">
     <header className="flex flex-wrap items-center justify-between gap-3">
@@ -174,7 +182,7 @@ export default function Operacao() {
     </header>
     <section className="metric-panel flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border p-5">
       <div><p className="text-xs font-semibold text-primary">Homologação local · {user?.gravacao ? "base fictícia" : "somente leitura"}</p>
-        <h1 className="mt-1 text-2xl font-semibold">Prospecção e Central BDR</h1></div>
+        <h1 className="mt-1 text-2xl font-semibold">Operação comercial</h1></div>
       {user && <div className="flex items-center gap-4 text-sm">
         <span>{user.nome} <span className="text-muted">· {user.papel}</span></span>
         <button disabled={busy || pending} type="button" onClick={() => void signOut()} className={control}>Sair</button>
@@ -189,14 +197,18 @@ export default function Operacao() {
         <label className="block text-sm">Senha<input name="senha" required autoComplete="current-password" type="password" className={`mt-1 block w-full ${control}`} /></label>
         <button disabled={busy} className={`${primary} w-full`}>Entrar</button>
       </form>
-    </Card> : <>
+    </Card> : shared && <>
       <nav className="flex flex-wrap gap-2" aria-label="Módulo">
-        {(["prospecting", "work"] as const).map((item) => <button key={item} type="button" aria-pressed={module === item}
+        {(Object.keys(modules) as Module[]).map((item) => <button key={item} type="button" aria-pressed={module === item}
           onClick={() => { setModule(item); filter(item === "work" && user.papel !== "executivo" ? "queue" : "all", ""); }}
-          className={module === item ? primary : control}>{item === "work" ? "Central BDR" : "Prospecção"}</button>)}
+          className={module === item ? primary : control}>{modules[item]}</button>)}
       </nav>
       {module === "prospecting" && manager && <CompanySearch writable={!!user.gravacao} pending={pending} run={run} onError={handleError} />}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+      {module === "crm" && <Crm shared={shared} onConsult={consult} />}
+      {module === "agenda" && <AgendaWorkspace shared={shared} />}
+      {module === "analytics" && <Analytics campaigns={campaigns} revision={revision} onError={handleError} />}
+      {module === "assistant" && <Assistant active={consultLead} setActive={setConsultLead} revision={revision} onError={handleError} />}
+      {(module === "prospecting" || module === "work") && <div className="grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
         <Card className="min-w-0">
           <h2 className="font-semibold">Leads autorizados</h2>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -210,19 +222,19 @@ export default function Operacao() {
           {loading ? <p role="status" className="mt-3 text-sm text-muted">Carregando…</p> : list && <>
             <p className="mt-3 text-xs text-muted">{list.total} registro(s){list.indicadores &&
               ` · ${list.indicadores.revisao} em revisão · ${list.indicadores.fila} na fila · ${list.indicadores.sla_vencido} SLA vencidos`}</p>
-            {user.gravacao && options && <BatchActions key={selectedRows.map((item) => item.id).join(",")} leads={selectedRows}
+            {bdrActions && options && <BatchActions key={selectedRows.map((item) => item.id).join(",")} leads={selectedRows}
               options={options} manager={manager} pending={pending} submit={submit} />}
             {rows.length ? <div className="mt-3 overflow-x-auto" tabIndex={0} role="region" aria-label="Tabela de leads">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-border text-xs text-muted"><tr>
-                  {user.gravacao && <th scope="col" className="p-2"><input type="checkbox" aria-label="Selecionar todos os leads da página"
+                  {bdrActions && <th scope="col" className="p-2"><input type="checkbox" aria-label="Selecionar todos os leads da página"
                     checked={selectedRows.length === rows.length} onChange={(event) => setSelected(event.target.checked ? rows.map((item) => item.id) : [])} /></th>}
                   <th scope="col" className="p-2">Empresa</th><th scope="col" className="p-2">Etapa</th><th scope="col" className="p-2">Score</th>
                 </tr></thead>
                 <tbody className="divide-y divide-border">{rows.map((item) => {
                   const name = item.nome_fantasia || item.razao_social;
                   return <tr key={item.id} className={active === item.id ? "bg-white/10" : undefined}>
-                    {user.gravacao && <td className="p-2"><input type="checkbox" aria-label={`Selecionar lead ${name}`}
+                    {bdrActions && <td className="p-2"><input type="checkbox" aria-label={`Selecionar lead ${name}`}
                       checked={selected.includes(item.id)} onChange={(event) => toggle(item.id, event.target.checked)} /></td>}
                     <th scope="row" className="p-2 font-medium"><button type="button" onClick={() => openLead(item.id)} aria-pressed={active === item.id}
                       className="break-words text-left underline decoration-border underline-offset-4 hover:text-primary">{name}</button></th>
@@ -251,6 +263,7 @@ export default function Operacao() {
               {detail.sla_limite && <p>SLA: {formatDate(detail.sla_limite)}</p>}
               {detail.retorno_em && <p>Retorno: {formatDate(detail.retorno_em)}</p>}
               <p className="text-primary">{detail.contato_autorizado ? "Contato autorizado" : "Contato bloqueado pela base legal ou etapa"}</p>
+              <button className={control} onClick={() => consult(detail.id)}>Consultar assistente</button>
               {detail.bant && <section className="border-t border-border pt-3"><h3 className="font-semibold">BANT progressivo</h3>
                 <dl className="mt-2 space-y-1">{Object.entries(bantLabels).map(([field, label]) => {
                   const status = detail.bant?.[field as keyof typeof bantLabels];
@@ -258,7 +271,7 @@ export default function Operacao() {
                     <dd className="text-muted">{status?.confirmado ? "Confirmado" : status?.preenchido ? "Preenchido" : "Pendente"}</dd></div>;
                 })}</dl></section>}
             </div>
-            {user.gravacao && options && <LeadActions key={`${detail.id}-${detail.versao}`} lead={detail} options={options}
+            {bdrActions && options && <LeadActions key={`${detail.id}-${detail.versao}`} lead={detail} options={options}
               manager={manager} pending={pending} submit={submit} />}
             {!!detail.atividades?.length && <section className="mt-4 border-t border-border pt-4">
               <h3 className="font-semibold">Atividades recentes</h3>
@@ -272,7 +285,7 @@ export default function Operacao() {
             </section>}
           </> : <p className="mt-3 text-sm text-muted">{active === null ? "Selecione um lead autorizado." : "Carregando ficha…"}</p>}
         </Card>
-      </div>
+      </div>}
     </>}
   </main>;
 }

@@ -28,6 +28,7 @@ export type Options = {
   resultados: string[];
   classificacoes: string[];
   solucoes: { id: string; nome: string }[];
+  executivos: { id: number; nome: string }[];
   bdrs: { id: number; nome: string }[];
   triagem: string[];
   processaveis: string[];
