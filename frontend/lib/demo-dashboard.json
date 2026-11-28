@@ -1,0 +1,216 @@
+{
+  "schema": "fullguete.dashboard.v1",
+  "source": "synthetic-only",
+  "series": [
+    {
+      "day": "2026-10-29",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-10-30",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-10-31",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-01",
+      "capturados": 24,
+      "tratados": 19,
+      "qualificados": 8,
+      "reunioes": 3
+    },
+    {
+      "day": "2026-11-02",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-03",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-04",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-05",
+      "capturados": 38,
+      "tratados": 29,
+      "qualificados": 12,
+      "reunioes": 5
+    },
+    {
+      "day": "2026-11-06",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-07",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-08",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-09",
+      "capturados": 29,
+      "tratados": 24,
+      "qualificados": 10,
+      "reunioes": 4
+    },
+    {
+      "day": "2026-11-10",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-11",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-12",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-13",
+      "capturados": 46,
+      "tratados": 39,
+      "qualificados": 17,
+      "reunioes": 7
+    },
+    {
+      "day": "2026-11-14",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-15",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-16",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-17",
+      "capturados": 36,
+      "tratados": 30,
+      "qualificados": 13,
+      "reunioes": 5
+    },
+    {
+      "day": "2026-11-18",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-19",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-20",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-21",
+      "capturados": 52,
+      "tratados": 43,
+      "qualificados": 19,
+      "reunioes": 8
+    },
+    {
+      "day": "2026-11-22",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-23",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-24",
+      "capturados": 41,
+      "tratados": 34,
+      "qualificados": 15,
+      "reunioes": 6
+    },
+    {
+      "day": "2026-11-25",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-26",
+      "capturados": 0,
+      "tratados": 0,
+      "qualificados": 0,
+      "reunioes": 0
+    },
+    {
+      "day": "2026-11-27",
+      "capturados": 57,
+      "tratados": 48,
+      "qualificados": 22,
+      "reunioes": 9
+    }
+  ]
+}
