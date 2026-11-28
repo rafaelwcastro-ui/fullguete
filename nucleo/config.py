@@ -22,7 +22,7 @@ MODELO_GEMINI_PADRAO = "gemini-3.1-flash-lite"
 
 def ler(nome: str, padrao: str = "") -> str:
     valor = os.environ.get(nome, "")
-    if not valor:
+    if not valor and os.environ.get("FULLGUETE_LOCAL_ENV_ONLY") != "1":
         try:
             import streamlit as st
 

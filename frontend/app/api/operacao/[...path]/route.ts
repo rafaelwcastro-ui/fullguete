@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Homologação local: o endereço upstream é fixo, sem proxy arbitrário.
-const upstream = "http://127.0.0.1:8000/v1";
 const cookieName = "fg_homolog_session";
+const cookiePath = "/api/operacao";
+
+function upstream() {
+  const origin = process.env.FULLGUETE_API_ORIGIN ?? "http://127.0.0.1:8001";
+  if (!/^http:\/\/127\.0\.0\.[12]:8001$/.test(origin)) {
+    throw new Error("Origem local da API Fullguete inválida.");
+  }
+  return origin + "/v1";
+}
 type Context = { params: Promise<{path: string[]}> };
 
 function localOnly(req: NextRequest) {
@@ -16,10 +23,10 @@ function sameOrigin(req: NextRequest) {
   return req.headers.get("origin") === `${req.nextUrl.protocol}//${req.headers.get("host")}`;
 }
 async function call(path: string, init: RequestInit, timeoutMs = 8000) {
-  return fetch(upstream + path, {...init, cache:"no-store", redirect:"error", signal:AbortSignal.timeout(timeoutMs)});
+  return fetch(upstream() + path, {...init, cache:"no-store", redirect:"error", signal:AbortSignal.timeout(timeoutMs)});
 }
 function clearCookie(res: NextResponse) {
-  res.cookies.set(cookieName,"",{path:"/",httpOnly:true,sameSite:"strict",maxAge:0});
+  res.cookies.set(cookieName,"",{path:cookiePath,httpOnly:true,sameSite:"strict",maxAge:0});
   return res;
 }
 
@@ -53,7 +60,7 @@ export async function POST(req: NextRequest, ctx: Context) {
     const session=await result.json();
     if(typeof session.access_token!=="string" || !session.usuario) return clearCookie(response({detail:"Sessão inválida."},502));
     const out=response({usuario:session.usuario});
-    out.cookies.set(cookieName,session.access_token,{httpOnly:true,sameSite:"strict",secure:req.nextUrl.protocol==="https:",path:"/",maxAge:1800});
+    out.cookies.set(cookieName,session.access_token,{httpOnly:true,sameSite:"strict",secure:req.nextUrl.protocol==="https:",path:cookiePath,maxAge:1800});
     return out;
   } catch {
     const failure = response({detail:"API indisponível ou solicitação inválida."},502);

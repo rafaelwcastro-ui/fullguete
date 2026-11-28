@@ -94,6 +94,13 @@ class ReadOnlyAPI(TestCase):
         self.assertEqual(response.status_code, 200)
         return {item["id"] for item in response.json()["items"]}
 
+    def test_local_health_exposes_only_service_identity(self):
+        for host in ("127.0.0.1:8001", "127.0.0.2:8001"):
+            result = self.client.get("/v1/health", headers={"Host": host})
+            self.assertEqual(result.status_code, 200)
+            self.assertEqual(result.json(), {"servico": "fullguete", "status": "ok"})
+        self.assertEqual(self.client.get("/v1/health", headers={"Host": "example.com"}).status_code, 400)
+
     def test_auth_required(self):
         for path in ["/v1/leads", "/v1/leads/10", "/v1/campaigns", "/v1/me"]:
             self.assertEqual(self.client.get(path).status_code, 401)

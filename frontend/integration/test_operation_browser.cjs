@@ -3,7 +3,7 @@ const { AxeBuilder } = require("@axe-core/playwright");
 const assert = require("node:assert/strict");
 const { join } = require("node:path");
 const { mkdir } = require("node:fs/promises");
-const url = process.env.OPERATION_URL || "http://127.0.0.1:3000/operacao";
+const url = process.env.OPERATION_URL || "http://127.0.0.1:3001/operacao";
 const screenshots = process.env.OPERATION_SCREENSHOTS;
 assert.ok(["127.0.0.1", "localhost"].includes(new URL(url).hostname), "Use uma homologação local.");
 

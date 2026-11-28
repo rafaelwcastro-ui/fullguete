@@ -4,7 +4,7 @@ const { join } = require("node:path");
 const { chromium } = require("playwright-core");
 const { AxeBuilder } = require("@axe-core/playwright");
 
-const url = new URL(process.env.OPERATION_URL || "http://127.0.0.1:3000/operacao");
+const url = new URL(process.env.OPERATION_URL || "http://127.0.0.1:3001/operacao");
 assert.ok(["127.0.0.1", "localhost"].includes(url.hostname), "Use uma homologação local.");
 
 async function run() {

@@ -4,19 +4,24 @@ A API mantém leitura como padrão. As gravações exigem um banco fictício cri
 
 ## Executar a homologação com escrita
 
+No Mac, abra `Iniciar-Fullguete.command` no Finder ou execute `./Iniciar-Fullguete.command` na raiz do clone. Requer Python 3.11+, Node.js 20.9+ com npm e curl. O script verifica as duas portas antes de instalar dependências ou criar a base. Usa a pasta ignorada `.fullguete-local/` deste clone para o ambiente Python e o banco fictício persistente. Quando os dois serviços respondem, abre [Fullguete no navegador](http://127.0.0.1:3001/operacao). Use `--no-open` para evitar a abertura e Ctrl+C para encerrar a instância iniciada pelo script.
+
+O frontend escuta em `127.0.0.1:3001`. A API escuta em `127.0.0.1:8001`. Se um endereço estiver ocupado, o script encerra antes de iniciar serviços. Apenas onde o sistema já disponibiliza `127.0.0.2` em loopback, é possível iniciar com `FULLGUETE_API_HOST=127.0.0.2 ./Iniciar-Fullguete.command`, mantendo as mesmas portas. O script ajusta o BFF automaticamente. Em execução manual, use `FULLGUETE_API_ORIGIN=http://127.0.0.2:8001` no processo Next.js para seguir essa opção. O BFF aceita somente esses dois destinos de loopback na porta 8001. O cookie de sessão utiliza o caminho `/api/operacao`.
+
 Na raiz, em um ambiente Python isolado:
 
 ```sh
+python -m portal_api.local --check
 pip install -r requirements.txt -r portal_api/requirements.txt
 python -m portal_api.sandbox /tmp/fullguete-homologacao
 FULLGUETE_API_DB_COPY=/tmp/fullguete-homologacao/homologacao.db \
 FULLGUETE_API_WRITE_MODE=homologacao \
-python -m uvicorn portal_api.app:create_app --factory --host 127.0.0.1 --port 8000
+python -m portal_api.local
 ```
 
 O preparador exige um diretório novo e gera esquema, 100 leads fictícios, usuários e modelos locais. A API recusa o caminho e aliases do banco operacional, bases mistas, perfis reais na base e cópias que não tenham sido preparadas. A API não aplica migrações. Para executar somente leitura, omita `FULLGUETE_API_WRITE_MODE`. Para uso local paralelo, não aponte a configuração do Streamlit para o banco de homologação.
 
-Em outro terminal, rode `cd frontend && npm ci && npm run build && npm run start -- --hostname 127.0.0.1`. Abra `http://127.0.0.1:3000/operacao`. Logins fictícios `gestor`, `bdr.ana`, `bdr.bruno` e `executivo`, com senha `fullguete-demo`.
+Em outro terminal, rode `cd frontend && npm ci && npm run build && npm run start`. Abra `http://127.0.0.1:3001/operacao`. Logins fictícios `gestor`, `bdr.ana`, `bdr.bruno` e `executivo`, com senha `fullguete-demo`.
 
 ## Contratos
 
@@ -77,7 +82,7 @@ Com a API e o Next.js rodando sobre uma base fictícia recém-preparada, instale
 npm install --prefix /tmp/fullguete-browser playwright-core @axe-core/playwright
 NODE_PATH=/tmp/fullguete-browser/node_modules \
 CHROMIUM_PATH=/usr/bin/chromium \
-OPERATION_URL=http://127.0.0.1:3000/operacao \
+OPERATION_URL=http://127.0.0.1:3001/operacao \
 OPERATION_SCREENSHOTS=/tmp/fullguete-capturas \
 node frontend/integration/test_operation_browser.cjs
 ```

@@ -37,6 +37,7 @@ from portal_api.commands import (
     campaign_data,
     find_targets,
 )
+from portal_api.local import API_HOSTS
 from portal_api.sandbox import MARKER
 
 SESSION_SECONDS = 1800
@@ -125,7 +126,7 @@ def create_app(
             if marker != [(MARKER,)] or mixed:
                 raise RuntimeError("A base contém dados fora do ambiente fictício.")
     app = FastAPI(title="Fullguete API — homologação", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None)
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver"])
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", *API_HOSTS, "testserver"])
     lock = threading.Lock()
     sessions: dict[str, tuple[int, str, float]] = {}
     attempts: deque[float] = deque()
@@ -188,6 +189,10 @@ def create_app(
                 sessions.pop(key, None)
             raise reject()
         return {k: row[k] for k in ("id", "login", "nome", "papel")}
+
+    @app.get("/v1/health")
+    def health():
+        return {"servico": "fullguete", "status": "ok"}
 
     @app.post("/v1/session")
     def login(body: Login):
