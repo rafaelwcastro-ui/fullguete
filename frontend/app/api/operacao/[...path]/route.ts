@@ -15,8 +15,8 @@ function response(data: unknown, status = 200) {
 function sameOrigin(req: NextRequest) {
   return req.headers.get("origin") === `${req.nextUrl.protocol}//${req.headers.get("host")}`;
 }
-async function call(path: string, init: RequestInit) {
-  return fetch(upstream + path, {...init, cache:"no-store", redirect:"error", signal:AbortSignal.timeout(8000)});
+async function call(path: string, init: RequestInit, timeoutMs = 8000) {
+  return fetch(upstream + path, {...init, cache:"no-store", redirect:"error", signal:AbortSignal.timeout(timeoutMs)});
 }
 function clearCookie(res: NextResponse) {
   res.cookies.set(cookieName,"",{path:"/",httpOnly:true,sameSite:"strict",maxAge:0});
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest, ctx: Context) {
         method:"POST",
         headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},
         body:JSON.stringify(input),
-      });
+      }, 30000);
       if (result.status === 401) return clearCookie(response({detail:"Sessão expirada."},401));
       return response(await result.json(),result.status);
     }
