@@ -12,7 +12,7 @@ npm run build
 npm run start
 ```
 
-Abra http://localhost:3000. Use `npm run dev` para desenvolvimento.
+Abra http://127.0.0.1:3001. Use `npm run dev` para desenvolvimento.
 
 ## O que a prévia cobre
 
@@ -44,3 +44,9 @@ O gerador cria sua própria base temporária e usa o exportador para produzir `l
 | Assistente IA | Resolver o lead autorizado antes de expor contexto ou chamar o serviço existente de chat com o catálogo. Manter o modo consultivo. |
 
 A API autenticada e todos os fluxos de escrita estão pendentes. Os testes de autorização da suíte Python validam o comportamento operacional existente em SQLite isolado. A próxima etapa da API exige testar sessão ausente, BDR responsável e fora da carteira, gestor, executivo e opt-out nas rotas.
+
+## Homologação dos fluxos operacionais
+
+A rota `/operacao` usa a API local. O modo de gravação exige uma cópia fictícia recém-preparada e habilitação explícita no servidor Python. Veja os [comandos de execução e validação](../portal_api/README.md).
+
+No Mac, abra `Iniciar-Fullguete.command` na raiz do repositório para iniciar o frontend em `http://127.0.0.1:3001` e a API em `http://127.0.0.1:8001`. O BFF usa `FULLGUETE_API_ORIGIN` apenas no servidor. O padrão e os endereços aceitos estão documentados em [Homologação local](../portal_api/README.md).

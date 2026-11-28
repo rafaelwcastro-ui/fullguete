@@ -184,7 +184,7 @@ def acrescentar(busca_id: int, empresas: list[dict], total_fonte: int) -> Busca:
     return carregar(busca_id)
 
 
-def importar(busca_id: int, cnpjs: list[str], ator: str):
+def importar(busca_id: int, cnpjs: list[str], ator: str, *, ficticio: bool = False):
     """Importa com atomicidade e associa também registros já existentes (deduplicados)."""
     from dados import ingestao
 
@@ -198,7 +198,7 @@ def importar(busca_id: int, cnpjs: list[str], ator: str):
     if not registros:
         raise ValueError("Selecione pelo menos uma empresa.")
     with conectar() as con:
-        resultado = ingestao.receber(registros, busca.provedor, ator, con=con)
+        resultado = ingestao.receber(registros, busca.provedor, ator, ficticio=ficticio, con=con)
         for registro in registros:
             # A própria ingestão garante deduplicação por CNPJ.
             linha = con.execute("SELECT id FROM leads WHERE cnpj=?", (registro["cnpj"],)).fetchone()

@@ -187,7 +187,11 @@ def _registro(item: dict) -> dict | None:
 def pesquisar(chave: str, params: dict) -> Resultado:
     if not chave.strip():
         raise ErroCnpja("Informe sua chave da CNPJá.")
-    dados = _obter(f"{BASE}/office", chave, params=params)
+    return normalizar_resposta(_obter(f"{BASE}/office", chave, params=params))
+
+
+def normalizar_resposta(dados: dict | list) -> Resultado:
+    """Traduz o contrato do fornecedor para registros cadastrais do Fullguete."""
     if not isinstance(dados, dict) or not isinstance(dados.get("records"), list):
         campos = list(dados) if isinstance(dados, dict) else []
         raise ErroCnpja(

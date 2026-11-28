@@ -209,3 +209,8 @@ estatisticamente validada em clientes reais enquanto o modelo depender de treina
 em base fictícia. Leads com base de contato pendente seguem para análise de IA e classificação interna,
 sem cadência de abordagem. Ligações, mensagens e reuniões dependem de base legal
 fundamentada, enquanto o opt-out mantém o bloqueio de contato e tratamento comercial.
+
+
+## Portal Fullguete 3.0 no Mac
+
+Abra `Iniciar-Fullguete.command` na raiz do repositório ou execute `./Iniciar-Fullguete.command` no terminal. O frontend usa `http://127.0.0.1:3001/operacao` e a API usa `http://127.0.0.1:8001`. A homologação inicializa um ambiente fictício próprio deste clone. [Configuração e execução manual](portal_api/README.md)

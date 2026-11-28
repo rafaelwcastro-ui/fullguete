@@ -34,7 +34,9 @@ def chave_conversa(usuario_id: int, lead_id: int | None) -> str:
     return f"assistente_historico_{usuario_id}_{lead_id or 'geral'}"
 
 
-def contexto_lead(lead_id: int | None, usuario: dict | None = None) -> dict | None:
+def contexto_lead(
+    lead_id: int | None, usuario: dict | None = None, *, incluir_valores_bant: bool = True
+) -> dict | None:
     """Contexto comercial com autorização explícita, sem dados pessoais do contato."""
     if not lead_id:
         return None
@@ -83,7 +85,9 @@ def contexto_lead(lead_id: int | None, usuario: dict | None = None) -> dict | No
         "dores": res.get("dores_provaveis", []),
         "perguntas": res.get("perguntas_descoberta", []),
         "objecoes": res.get("objecoes", []),
-        "bant": {k: v for k, v in bant.items() if k in ("orcamento", "autoridade", "necessidade", "prazo") and v},
+        "bant": {
+            k: v if incluir_valores_bant else "preenchido" for k, v in bant.items() if k in comercial.BANT_CAMPOS and v
+        },
     }
 
 
@@ -140,12 +144,12 @@ def _local(pergunta: str, lead: dict | None, fontes: list[tuple[dict, float]]) -
 
 
 def responder(pergunta: str, lead_id: int | None = None, historico: list[dict] | None = None,
-             usuario: dict | None = None) -> dict:  # fmt: skip
-    lead = contexto_lead(lead_id, usuario)
+             usuario: dict | None = None, *, usar_llm: bool = True, incluir_valores_bant: bool = True) -> dict:  # fmt: skip
+    lead = contexto_lead(lead_id, usuario, incluir_valores_bant=incluir_valores_bant)
     consulta = pergunta + (" " + " ".join(lead["dores"]) if lead else "")
     fontes = rag.buscar(consulta, k=4)
     nomes = [s["nome"] for s, _ in fontes]
-    if provedor.disponivel():
+    if usar_llm and provedor.disponivel():
         catalogo_ctx = [{"nome": s["nome"], "o_que_resolve": s["o_que_resolve"], "perfil_tipico": s["perfil_tipico"],
                          "perguntas": s["perguntas_descoberta"]} for s, _ in fontes]  # fmt: skip
         conversa = "\n".join(f"{m['papel']}: {m['texto']}" for m in (historico or [])[-6:])

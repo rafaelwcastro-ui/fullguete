@@ -27,3 +27,6 @@ PROMPT_Fullguete_Claude_Code.md.pdf
 
 # Arquivos pessoais na pasta do projeto
 *.pdf
+
+# Ambiente local exclusivo do portal Fullguete
+.fullguete-local/

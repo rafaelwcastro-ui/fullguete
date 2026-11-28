@@ -7,6 +7,9 @@ Nenhuma chave fica no código. Sem chave, o sistema roda em modo local e simulad
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -19,7 +22,7 @@ MODELO_GEMINI_PADRAO = "gemini-3.1-flash-lite"
 
 def ler(nome: str, padrao: str = "") -> str:
     valor = os.environ.get(nome, "")
-    if not valor:
+    if not valor and os.environ.get("FULLGUETE_LOCAL_ENV_ONLY") != "1":
         try:
             import streamlit as st
 
@@ -80,7 +83,21 @@ def caminho_banco() -> Path:
     return caminho if caminho.is_absolute() else RAIZ / caminho
 
 
+_modelos_isolados: ContextVar[Path | None] = ContextVar("modelos_isolados", default=None)
+
+
+@contextmanager
+def usar_modelos_isolados(pasta: Path) -> Iterator[None]:
+    token = _modelos_isolados.set(pasta)
+    try:
+        yield
+    finally:
+        _modelos_isolados.reset(token)
+
+
 def pasta_modelos() -> Path:
+    if (isolada := _modelos_isolados.get()) is not None:
+        return isolada
     caminho = Path(ler("FULLGUETE_MODELOS_DIR", "modelos"))
     caminho = caminho if caminho.is_absolute() else RAIZ / caminho
     caminho.mkdir(parents=True, exist_ok=True)

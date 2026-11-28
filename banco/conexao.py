@@ -7,6 +7,7 @@ import sqlite3
 import threading
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -18,6 +19,19 @@ MIGRACOES = PASTA / "migracoes"
 
 _migrados: set[str] = set()
 _trava = threading.Lock()
+_conexao_transacional: ContextVar[sqlite3.Connection | None] = ContextVar("conexao_transacional", default=None)
+
+
+@contextmanager
+def reutilizar_transacao(con: sqlite3.Connection) -> Iterator[None]:
+    """Entrega uma transação já aberta aos serviços durante o comando do portal."""
+    if not con.in_transaction or _conexao_transacional.get() is not None:
+        raise RuntimeError("É necessária uma transação externa exclusiva.")
+    token = _conexao_transacional.set(con)
+    try:
+        yield
+    finally:
+        _conexao_transacional.reset(token)
 
 
 def agora() -> str:
@@ -68,6 +82,12 @@ def migrar(con: sqlite3.Connection) -> int:
 @contextmanager
 def conectar(caminho: Path | None = None) -> Iterator[sqlite3.Connection]:
     """Abre uma conexão, garante o esquema e faz commit ao sair (ou rollback em erro)."""
+    transacao = _conexao_transacional.get()
+    if transacao is not None:
+        if caminho is not None:
+            raise RuntimeError("Um serviço não pode trocar de banco durante uma transação externa.")
+        yield transacao
+        return
     caminho = Path(caminho or config.caminho_banco())
     caminho.parent.mkdir(parents=True, exist_ok=True)
     with closing(sqlite3.connect(caminho, timeout=15)) as con:
