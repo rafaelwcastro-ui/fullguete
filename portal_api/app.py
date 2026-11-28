@@ -1,6 +1,4 @@
 """Primeiro incremento: API autenticada de leitura para homologação local."""
-from __future__ import annotations
-
 import hashlib
 import os
 import secrets
